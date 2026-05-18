@@ -20,14 +20,14 @@ tech industry at large — using Groq-hosted Llama 3.3 70B with cited sources.
 
 ## Setup
 
-\`\`\`bash
+```bash
 uv sync --extra dev
 cp .env.example .env  # then add your GROQ_API_KEY
-\`\`\`
+```
 
 ## Usage
 
-\`\`\`bash
+```bash
 # 1. Ingest latest articles (incremental)
 uv run python scripts/ingest.py --config configs/ingestion.yaml
 
@@ -36,11 +36,11 @@ uv run python scripts/evaluate.py --config configs/eval.yaml
 
 # 3. Launch the Gradio demo
 uv run python scripts/app.py
-\`\`\`
+```
 
 ## Project structure
 
-\`\`\`
+```
 src/tech_news_rag_assistant/
 ├── ingestion/     # RSS parsing, deduplication, chunking, embedding, indexing
 ├── retrieval/     # Dense + BM25 hybrid retrieval, cross-encoder reranking
@@ -52,7 +52,7 @@ scripts/  ingest.py   evaluate.py   app.py
 configs/  base.yaml + per-stage overrides
 eval/     golden_set/ (curated Q&A pairs)
 tests/    pytest sanity checks
-\`\`\`
+```
 
 ## License
 
