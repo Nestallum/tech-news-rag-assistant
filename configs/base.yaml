@@ -1,0 +1,19 @@
+# =============================================================================
+# Base configuration — defaults shared across all stages
+# =============================================================================
+# Per-stage configs (ingestion.yaml, retrieval.yaml, eval.yaml) override these.
+# Load order: base.yaml → <stage>.yaml → CLI overrides (handled by OmegaConf).
+
+seed: 42
+
+paths:
+  data_dir: data                      # raw + cleaned articles dumped here
+  chroma_dir: chroma_db               # ChromaDB persistence directory
+  hf_cache: .hf_cache                 # HuggingFace model cache
+  eval_dir: eval                      # golden set + eval outputs
+  logs_dir: logs                      # structured logs
+
+logging:
+  level: INFO
+  format: "%(asctime)s | %(levelname)-7s | %(name)s | %(message)s"
+  datefmt: "%Y-%m-%d %H:%M:%S"

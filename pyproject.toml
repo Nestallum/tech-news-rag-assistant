@@ -1,0 +1,145 @@
+[project]
+name = "tech-news-rag-assistant"
+version = "0.1.0"
+description = "End-to-end RAG assistant on tech news (AI, product launches, funding, big tech). LangChain + ChromaDB + BGE + Groq."
+readme = "README.md"
+requires-python = ">=3.14"
+license = { text = "MIT" }
+authors = [{ name = "Nestallum", email = "your@email.com" }]
+keywords = [
+    "rag",
+    "retrieval-augmented-generation",
+    "langchain",
+    "chromadb",
+    "llm",
+    "groq",
+    "tech-news",
+    "gradio",
+    "huggingface-spaces",
+    "mlops",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+# -----------------------------------------------------------------------------
+# Runtime dependencies
+# -----------------------------------------------------------------------------
+# Pinned with `>=` minimums to allow uv.lock to resolve consistently.
+# We avoid hard upper bounds (e.g. <3.0) unless we hit a known breaking change.
+dependencies = [
+    # --- Orchestration ---
+    "langchain>=0.3",
+    "langchain-community>=0.3",         # community integrations (Chroma, BM25, etc.)
+    "langchain-huggingface>=0.1",       # HF embeddings wrapper
+    "langchain-groq>=0.2",              # Groq LLM wrapper
+    "langchain-text-splitters>=0.3",    # RecursiveCharacterTextSplitter and friends
+
+    # --- Vector store ---
+    "chromadb>=0.5",
+
+    # --- Embeddings + reranker ---
+    "sentence-transformers>=3.0",       # BGE-large-en-v1.5 + cross-encoder reranker
+    "torch>=2.4",                       # CPU wheel is fine for embeddings on most laptops
+
+    # --- Retrieval ---
+    "rank-bm25>=0.2.2",                 # sparse retrieval for hybrid search
+
+    # --- Ingestion ---
+    "feedparser>=6.0",                  # RSS parsing
+    "httpx>=0.27",                      # async HTTP client (faster than requests for batch fetch)
+    "beautifulsoup4>=4.12",             # HTML cleanup of feed entries
+    "lxml>=5.2",                        # fast XML parser for feedparser/bs4
+    "tenacity>=9.0",                    # retry with exponential backoff for network calls
+
+    # --- Demo ---
+    "gradio>=5.0",
+
+    # --- Config & utilities ---
+    "omegaconf>=2.3",
+    "pydantic>=2.8",                    # typed config validation + RAG response schemas
+    "python-dotenv>=1.0",               # local .env loading (API keys)
+    "tqdm>=4.66",
+    "rich>=13.7",                       # nicer CLI output (logger, progress, eval reports)
+]
+
+# -----------------------------------------------------------------------------
+# Optional dependencies
+# -----------------------------------------------------------------------------
+# `local-llm`: only needed if you want to run the local Qwen fallback.
+# Keeps the default install lightweight for users who just use Groq.
+[project.optional-dependencies]
+local-llm = [
+    "llama-cpp-python>=0.3",            # GGUF quantized inference on consumer GPUs
+]
+
+# Dev dependencies: linting, tests, dev experience.
+dev = [
+    "ruff>=0.7",
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "pytest-asyncio>=0.24",             # for async ingestion tests
+    "pre-commit>=4.0",                  # git hooks for ruff before each commit
+    "ipykernel>=6.29",
+    "jupyter>=1.1",
+]
+
+# -----------------------------------------------------------------------------
+# Build
+# -----------------------------------------------------------------------------
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/tnra"]
+
+# -----------------------------------------------------------------------------
+# Ruff (lint + format)
+# -----------------------------------------------------------------------------
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+extend-exclude = ["notebooks", "assets", "data", "eval/golden_set"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W", "F",      # pycodestyle + pyflakes
+    "I",                # isort
+    "B",                # flake8-bugbear
+    "C4",               # comprehensions
+    "UP",               # pyupgrade (modern Python idioms)
+    "N",                # pep8-naming
+    "SIM",              # flake8-simplify
+    "RUF",              # ruff-specific
+]
+ignore = [
+    "E501",             # line too long (formatter handles)
+    "N812",             # lowercase imported as non-lowercase (F as functional)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101"]            # asserts allowed in tests
+"scripts/*" = ["E402"]          # module-level imports not at top (for sys.path tweaks)
+"notebooks/*" = ["ALL"]         # don't lint notebooks
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+# -----------------------------------------------------------------------------
+# Pytest
+# -----------------------------------------------------------------------------
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-v --tb=short --strict-markers"
+markers = [
+    "slow: tests that hit the network or load heavy models",
+    "integration: end-to-end tests across modules",
+]
+asyncio_mode = "auto"

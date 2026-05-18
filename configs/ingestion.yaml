@@ -1,0 +1,61 @@
+# =============================================================================
+# Ingestion stage: RSS fetch → clean → chunk → embed → index
+# =============================================================================
+# Editorial scope: consumer-facing tech news — AI breakthroughs, product launches
+# (Apple, Samsung, Google...), funding rounds, big tech moves, acquisitions.
+# Not academic (no arXiv), not deep technical blogs (no HF blog).
+
+feeds:
+  # Cœur du corpus (full-text confirmé, full-text RSS gratuit)
+  - name: techcrunch_main
+    url: https://techcrunch.com/feed/
+    source: TechCrunch
+  - name: techcrunch_ai
+    url: https://techcrunch.com/category/artificial-intelligence/feed/
+    source: TechCrunch
+  - name: venturebeat_main
+    url: https://venturebeat.com/feed/
+    source: VentureBeat
+  - name: venturebeat_ai
+    url: https://venturebeat.com/category/ai/feed/
+    source: VentureBeat
+
+  # Candidats à valider empiriquement au premier run (full-text non confirmé)
+  - name: engadget
+    url: https://www.engadget.com/rss.xml
+    source: Engadget
+    candidate: true                   # excluded if --validate-feeds flags as excerpt-only
+  - name: 9to5mac
+    url: https://9to5mac.com/feed/
+    source: 9to5Mac
+    candidate: true
+
+fetch:
+  user_agent: "tech-news-rag-assistant/0.1 (+https://github.com/Nestallum/tech-news-rag-assistant)"
+  timeout_s: 30
+  max_retries: 3
+  retry_wait_s: 2
+  validate_min_content_chars: 1500    # candidate feeds with avg(content) below this are dropped
+
+deduplication:
+  # On dédoublonne par URL canonique (après strip des UTM params) puis par hash du contenu
+  by_url: true
+  by_content_hash: true
+
+chunking:
+  splitter: recursive_character        # RecursiveCharacterTextSplitter from langchain-text-splitters
+  chunk_size: 512                      # in tokens (approximated via tiktoken cl100k_base)
+  chunk_overlap: 64                    # ~12.5% overlap
+  separators: ["\n\n", "\n", ". ", " ", ""]
+
+embeddings:
+  model: BAAI/bge-large-en-v1.5
+  device: auto                         # auto-detect cuda → mps → cpu
+  batch_size: 32
+  normalize: true                      # L2-normalize for cosine similarity in Chroma
+  query_prefix: ""                     # BGE-v1.5 doesn't require query prefix (older v1.0 did)
+
+index:
+  backend: chromadb
+  collection_name: tech_news
+  distance: cosine                     # consistent with normalize=true above

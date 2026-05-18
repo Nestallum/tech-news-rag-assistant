@@ -1,0 +1,26 @@
+# =============================================================================
+# Evaluation stage: golden set → retrieval metrics + LLM-as-judge
+# =============================================================================
+
+golden_set:
+  path: eval/golden_set/questions.json
+  num_questions: 15                    # we'll curate ~15 manually
+
+retrieval_metrics:
+  ks: [1, 3, 5, 10]                    # Recall@k, MRR@k
+
+judge:
+  model: llama-3.3-70b-versatile       # same as the generator (acceptable for v1, document the bias)
+  provider: groq
+  temperature: 0.0                     # deterministic scoring
+  criteria:
+    - faithfulness                     # does the answer stick to retrieved context?
+    - answer_relevance                 # does the answer address the question?
+    - source_citation                  # are sources cited correctly?
+  scale: 1-5
+
+generation:
+  model: llama-3.3-70b-versatile
+  provider: groq
+  temperature: 0.1
+  max_tokens: 1024
