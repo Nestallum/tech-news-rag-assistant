@@ -1,34 +1,31 @@
 # =============================================================================
-# Ingestion stage: RSS fetch → clean → chunk → embed → index
+# Ingestion stage: RSS parse → HTML scrape → clean → chunk → embed → index
 # =============================================================================
 # Editorial scope: consumer-facing tech news — AI breakthroughs, product launches
 # (Apple, Samsung, Google...), funding rounds, big tech moves, acquisitions.
-# Not academic (no arXiv), not deep technical blogs (no HF blog).
+# All sources validated empirically (≥80% scrape success, avg ≥1500 chars).
+
 
 feeds:
-  # Cœur du corpus (full-text confirmé, full-text RSS gratuit)
   - name: techcrunch_main
     url: https://techcrunch.com/feed/
     source: TechCrunch
   - name: techcrunch_ai
     url: https://techcrunch.com/category/artificial-intelligence/feed/
     source: TechCrunch
-  - name: venturebeat_main
-    url: https://venturebeat.com/feed/
-    source: VentureBeat
-  - name: venturebeat_ai
-    url: https://venturebeat.com/category/ai/feed/
-    source: VentureBeat
-
-  # Candidats à valider empiriquement au premier run (full-text non confirmé)
   - name: engadget
     url: https://www.engadget.com/rss.xml
     source: Engadget
-    candidate: true                   # excluded if --validate-feeds flags as excerpt-only
   - name: 9to5mac
     url: https://9to5mac.com/feed/
     source: 9to5Mac
-    candidate: true
+    max_entries: 30          # limit Apple over-representation
+  - name: the_verge
+    url: https://www.theverge.com/rss/index.xml
+    source: The Verge
+  - name: ars_technica
+    url: https://feeds.arstechnica.com/arstechnica/index
+    source: Ars Technica
 
 fetch:
   user_agent: "tech-news-rag-assistant/0.1 (+https://github.com/Nestallum/tech-news-rag-assistant)"
@@ -38,7 +35,7 @@ fetch:
   validate_min_content_chars: 1500    # candidate feeds with avg(content) below this are dropped
 
 deduplication:
-  # On dédoublonne par URL canonique (après strip des UTM params) puis par hash du contenu
+  # Deduplicate by canonical URL (after stripping UTM params) then by content hash
   by_url: true
   by_content_hash: true
 
