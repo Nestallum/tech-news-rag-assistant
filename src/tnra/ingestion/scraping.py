@@ -186,7 +186,7 @@ def scrape_articles(
       - Polite to publishers: no risk of getting rate-limited or blocked
       - Ingestion runs offline (background task), latency is not critical
       - 100 articles × ~1.5s + 0.25s delay = 3 min total — perfectly acceptable
-    """
+    """  # noqa: RUF002
     import time
 
     logger.info("Scraping %d articles (delay=%.2fs between calls)...", len(entries), delay_s)
