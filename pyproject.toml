@@ -60,6 +60,7 @@ dependencies = [
     "tqdm>=4.66",
     "rich>=13.7",                       # nicer CLI output (logger, progress, eval reports)
     "trafilatura>=2.0.0",
+    "tiktoken>=0.13.0",
 ]
 
 # -----------------------------------------------------------------------------
@@ -138,3 +139,19 @@ markers = [
     "integration: end-to-end tests across modules",
 ]
 asyncio_mode = "auto"
+
+# -----------------------------------------------------------------------------
+# PyTorch CUDA wheels (Windows / Linux)
+# -----------------------------------------------------------------------------
+# CUDA 13.0 wheels — matches the setup used on existing DL projects in this
+# environment (driver 591.86 + CUDA 13.1 runtime). Falls back to CPU wheels on
+# macOS automatically.
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cu130", marker = "sys_platform == 'linux' or sys_platform == 'win32'" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cu130"
+url = "https://download.pytorch.org/whl/cu130"
+explicit = true
