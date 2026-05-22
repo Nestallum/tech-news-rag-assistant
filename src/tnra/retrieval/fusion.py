@@ -21,27 +21,10 @@ per-corpus calibration.
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
-
 from tnra.retrieval.schemas import RetrievalResult
 from tnra.utils.logger import get_logger
 
 logger = get_logger(__name__)
-
-
-# -----------------------------------------------------------------------------
-# Config schema
-# -----------------------------------------------------------------------------
-
-
-class FusionConfig(BaseModel):
-    """Validated config for RRF fusion.
-
-    Built from the `retrieval.hybrid` section of `configs/retrieval.yaml`.
-    `rrf_k` defaults to 60 — the canonical value; rarely worth changing.
-    """
-
-    rrf_k: int = Field(default=60, gt=0)
 
 
 # -----------------------------------------------------------------------------

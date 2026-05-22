@@ -20,7 +20,6 @@ from __future__ import annotations
 import re
 
 from chromadb.api.models.Collection import Collection
-from pydantic import BaseModel, Field
 from rank_bm25 import BM25Okapi
 
 from tnra.retrieval.schemas import RetrievalResult
@@ -31,21 +30,6 @@ logger = get_logger(__name__)
 # Token pattern: runs of letters/digits. Splits on everything else (spaces,
 # punctuation, symbols). Simple and language-agnostic enough for English news.
 _TOKEN_PATTERN = re.compile(r"[a-z0-9]+")
-
-
-# -----------------------------------------------------------------------------
-# Config schema
-# -----------------------------------------------------------------------------
-
-
-class SparseRetrieverConfig(BaseModel):
-    """Validated config for the sparse retriever.
-
-    Built from the `retrieval.hybrid` section of `configs/retrieval.yaml`
-    (the `bm25_top_k` field).
-    """
-
-    top_k: int = Field(gt=0, le=200)
 
 
 # -----------------------------------------------------------------------------

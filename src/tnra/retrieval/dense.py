@@ -12,28 +12,12 @@ config and loaded identically on both sides.
 from __future__ import annotations
 
 from chromadb.api.models.Collection import Collection
-from pydantic import BaseModel, Field
 
 from tnra.ingestion.embedding import Embedder
 from tnra.retrieval.schemas import RetrievalResult
 from tnra.utils.logger import get_logger
 
 logger = get_logger(__name__)
-
-
-# -----------------------------------------------------------------------------
-# Config schema
-# -----------------------------------------------------------------------------
-
-
-class DenseRetrieverConfig(BaseModel):
-    """Validated config for the dense retriever.
-
-    Built from the `retrieval.hybrid` section of `configs/retrieval.yaml`
-    (the `dense_top_k` field).
-    """
-
-    top_k: int = Field(gt=0, le=200)
 
 
 # -----------------------------------------------------------------------------
