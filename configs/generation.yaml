@@ -1,0 +1,15 @@
+# =============================================================================
+# Generation stage: retrieve → threshold guard → prompt → LLM → typed response
+# =============================================================================
+# Produces grounded answers from retrieved passages, with explicit source
+# citations and an anti-hallucination guard. The LLM is served remotely by Groq;
+# only non-secret parameters live here — the API key stays in .env.
+
+
+llm:
+  provider: groq
+  model: llama-3.3-70b-versatile       # any Groq-hosted model works by name swap
+  temperature: 0.1                     # near-deterministic — minimize hallucination in RAG
+  max_tokens: 1024
+  timeout_s: 30
+  max_retries: 2
