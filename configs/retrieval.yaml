@@ -7,7 +7,6 @@ retrieval:
   hybrid:
     dense_top_k: 20                    # candidates from ChromaDB dense search
     bm25_top_k: 20                     # candidates from BM25 sparse search
-    fusion: reciprocal_rank            # RRF: stable, no hyperparameter to tune
     rrf_k: 60                          # standard RRF constant (Cormack et al., 2009)
 
   # Phase 2 (reranking): cross-encoder reranker on top of hybrid candidates
