@@ -13,7 +13,7 @@ retrieval:
   # Phase 2 (reranking): cross-encoder reranker on top of hybrid candidates
   reranker:
     enabled: true
-    model: BAAI/bge-reranker-base
+    model: BAAI/bge-reranker-v2-m3
     top_k: 5                           # final number of passages passed to the LLM
     device: auto
     batch_size: 16
