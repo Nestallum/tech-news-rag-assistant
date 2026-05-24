@@ -63,6 +63,29 @@ def extract_sources(answer: str, results: list[RetrievalResult]) -> list[Source]
     return sources
 
 
+def strip_markers(text: str) -> str:
+    """Remove citation markers like [1], [2] from an answer.
+
+    Markers are an internal mechanism: they let extract_sources map the answer
+    to its sources. Once the sources are built, the markers have done their
+    job and are removed so the user-facing text stays clean.
+
+    Args:
+        text: The raw answer text, possibly containing [n] markers.
+
+    Returns:
+        The text with all markers removed and tidied whitespace.
+    """
+    # Remove a run of one or more markers, including separators between them
+    # (e.g. "[2], [3]" or "[1] [2]") — so no orphan comma is left behind.
+    text = re.sub(r"\[\d+\](?:\s*,?\s*\[\d+\])*", "", text)
+    # Collapse spaces left before punctuation.
+    text = re.sub(r"\s+([.,;:!?])", r"\1", text)
+    # Collapse doubled spaces.
+    text = re.sub(r"\s{2,}", " ", text)
+    return text.strip()
+
+
 def generate_answer(
     question: str,
     results: list[RetrievalResult],
@@ -122,10 +145,11 @@ def answer_question(
     # Retrieval is strong enough: call the LLM and build the cited sources.
     raw_answer = generate_answer(question, results, llm)
     sources = extract_sources(raw_answer, results)
+    clean_answer = strip_markers(raw_answer)
 
     logger.info("Answered question %r — %d source(s) cited", question[:60], len(sources))
     return RAGResponse(
-        answer=raw_answer,
+        answer=clean_answer,
         sources=sources,
         guard_triggered=False,
     )
