@@ -35,10 +35,6 @@ class RAGResponse(BaseModel):
         default_factory=list,
         description="Sources actually cited in the answer, one per used marker",
     )
-    query_language: str = Field(
-        default="en",
-        description="Language of the user's question (for the multilingual wrapper)",
-    )
     guard_triggered: bool = Field(
         default=False,
         description="True if the anti-hallucination guard refused before the LLM",
