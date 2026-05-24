@@ -61,6 +61,7 @@ dependencies = [
     "rich>=13.7",                       # nicer CLI output (logger, progress, eval reports)
     "trafilatura>=2.0.0",
     "tiktoken>=0.13.0",
+    "lingua-language-detector>=2.2.0",
 ]
 
 # -----------------------------------------------------------------------------
