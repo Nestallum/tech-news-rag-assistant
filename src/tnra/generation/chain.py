@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import re
 
+from tnra.generation.llm import LLMClient
+from tnra.generation.prompt import PROMPT, format_context
 from tnra.generation.schemas import Source
 from tnra.retrieval.schemas import RetrievalResult
 
@@ -55,3 +57,29 @@ def extract_sources(answer: str, results: list[RetrievalResult]) -> list[Source]
         )
 
     return sources
+
+
+def generate_answer(
+    question: str,
+    results: list[RetrievalResult],
+    llm: LLMClient,
+) -> str:
+    """Call the LLM on the retrieved passages and return its raw answer text.
+
+    Assembles the prompt from the numbered passages and the question, sends it
+    to the LLM, and returns the reply as-is — still containing [n] markers,
+    not yet parsed into sources.
+
+    Args:
+        question: The user's question.
+        results: Retrieved passages, ranked best-first. Their order must match
+            the order used everywhere else in the chain (the markers depend
+            on it).
+        llm: The loaded LLM client.
+
+    Returns:
+        The LLM's raw answer text.
+    """
+    context = format_context(results)
+    messages = PROMPT.format_messages(context=context, question=question)
+    return llm.invoke(messages)  # type: ignore

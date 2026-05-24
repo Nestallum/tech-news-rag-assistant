@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 
+from gradio.server_messages import BaseMessage
 from langchain_groq import ChatGroq
 from pydantic import BaseModel, Field
 
@@ -55,7 +56,15 @@ class LLMClient:
             api_key=api_key,  # type: ignore
         )
 
-    def invoke(self, prompt: str) -> str:
-        """Send a prompt to the LLM and return its text response."""
-        response = self._chat.invoke(prompt)
+    def invoke(self, messages: list[BaseMessage]) -> str:
+        """Send chat messages to the LLM and return its text response.
+
+        Args:
+            messages: Chat messages, e.g. produced by a ChatPromptTemplate
+                (a system message plus a user message).
+
+        Returns:
+            The model's reply as plain text.
+        """
+        response = self._chat.invoke(messages)  # type: ignore
         return response.content  # type: ignore
