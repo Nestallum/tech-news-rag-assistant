@@ -8,10 +8,14 @@ from __future__ import annotations
 
 import re
 
+from tnra.generation.guard import GuardConfig, passes_guard
 from tnra.generation.llm import LLMClient
 from tnra.generation.prompt import PROMPT, format_context
-from tnra.generation.schemas import Source
+from tnra.generation.schemas import RAGResponse, Source
 from tnra.retrieval.schemas import RetrievalResult
+from tnra.utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 # Matches a citation marker like [1], [12]... and captures the number inside.
 _MARKER_PATTERN = re.compile(r"\[(\d+)\]")
@@ -83,3 +87,45 @@ def generate_answer(
     context = format_context(results)
     messages = PROMPT.format_messages(context=context, question=question)
     return llm.invoke(messages)  # type: ignore
+
+
+def answer_question(
+    question: str,
+    results: list[RetrievalResult],
+    llm: LLMClient,
+    guard_cfg: GuardConfig,
+) -> RAGResponse:
+    """Run the full generation pipeline for one question.
+
+    Steps: check the retrieval guard; if it fails, refuse without calling the
+    LLM. Otherwise call the LLM, map its citation markers to sources, and pack
+    everything into a RAGResponse.
+
+    Args:
+        question: The user's question.
+        results: Retrieved passages, ranked best-first (output of Phase 2).
+        llm: The loaded LLM client.
+        guard_cfg: Guard configuration (threshold and refusal message).
+
+    Returns:
+        A complete RAGResponse — either a real answer or a guard refusal.
+    """
+    # Guard: if retrieval is too weak, refuse without calling the LLM.
+    if not passes_guard(results, guard_cfg):
+        logger.info("Guard triggered for question %r — refusing", question[:60])
+        return RAGResponse(
+            answer=guard_cfg.refusal_message,
+            sources=[],
+            guard_triggered=True,
+        )
+
+    # Retrieval is strong enough: call the LLM and build the cited sources.
+    raw_answer = generate_answer(question, results, llm)
+    sources = extract_sources(raw_answer, results)
+
+    logger.info("Answered question %r — %d source(s) cited", question[:60], len(sources))
+    return RAGResponse(
+        answer=raw_answer,
+        sources=sources,
+        guard_triggered=False,
+    )

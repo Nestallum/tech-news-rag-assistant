@@ -18,6 +18,7 @@ class GuardConfig(BaseModel):
     """Validated schema for the `guard` section of generation.yaml."""
 
     min_retrieval_score: float = Field(ge=0.0, le=1.0)
+    refusal_message: str
 
 
 def passes_guard(results: list[RetrievalResult], cfg: GuardConfig) -> bool:
