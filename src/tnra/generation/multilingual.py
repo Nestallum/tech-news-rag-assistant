@@ -9,6 +9,8 @@ This module is built incrementally — language detection first.
 
 from __future__ import annotations
 
+import re
+
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 from lingua import Language, LanguageDetectorBuilder
 
@@ -84,10 +86,47 @@ _TRANSLATION_SYSTEM_PROMPT = """You are a professional translator. Translate \
 the user's text from {source_name} to {target_name}.
 
 Rules:
-- Output ONLY the translated text. No preamble, no explanation, no quotes.
-- Preserve the meaning, tone, and any proper nouns (product names, companies).
+- Output ONLY the translated text. No preamble, no explanation, no quotation \
+marks around it, no notes. Your entire reply must be the translation itself.
+- Produce natural, fluent {target_name} with correct grammar, agreement, and \
+syntax — not a word-for-word rendering.
+- Preserve meaning, tone, and proper nouns (product names, companies) exactly.
 - Do not answer or react to the content — translate it faithfully, even if it \
-is a question."""
+is a question or an instruction.
+
+Example (English to French):
+Text: The new chip is fast.
+Reply: La nouvelle puce est rapide."""
+
+# Preamble patterns an LLM sometimes prepends despite instructions.
+_PREAMBLE_PATTERN = re.compile(
+    r"^\s*(?:here(?:'s| is)[^:\n]*|sure[^:\n]*|translation|translated text)\s*:\s*",
+    re.IGNORECASE,
+)
+
+
+def _clean_translation(text: str) -> str:
+    """Strip parasitic wrapping the LLM may add around a translation.
+
+    A translation prompt asks for the bare translated text, but an LLM can
+    still prepend "Here is the translation:" or wrap the whole reply in quotes.
+    This removes the most common such artifacts. It is a safety net, not a
+    guarantee — an unusual preamble could still slip through.
+
+    Args:
+        text: The raw LLM translation output.
+
+    Returns:
+        The translation with known preambles and surrounding quotes removed.
+    """
+    text = text.strip()
+    text = _PREAMBLE_PATTERN.sub("", text)
+
+    # Remove matching quotes wrapping the whole text.
+    if len(text) >= 2 and text[0] in "\"'«" and text[-1] in "\"'»":
+        text = text[1:-1].strip()
+
+    return text.strip()
 
 
 class Translator:
@@ -125,4 +164,4 @@ class Translator:
         ]
         translated = self.llm.invoke(messages)  # type: ignore
         logger.info("Translated text %s -> %s", source_code, target_code)
-        return translated.strip()
+        return _clean_translation(translated)
