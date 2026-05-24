@@ -9,7 +9,13 @@ This module is built incrementally — language detection first.
 
 from __future__ import annotations
 
+from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 from lingua import Language, LanguageDetectorBuilder
+
+from tnra.generation.llm import LLMClient
+from tnra.utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 # Maps our config language codes to lingua's Language enum members.
 _CODE_TO_LANGUAGE: dict[str, Language] = {
@@ -18,6 +24,15 @@ _CODE_TO_LANGUAGE: dict[str, Language] = {
     "es": Language.SPANISH,
     "de": Language.GERMAN,
     "zh": Language.CHINESE,
+}
+
+# Human-readable language names, for use inside translation prompts.
+_CODE_TO_NAME: dict[str, str] = {
+    "en": "English",
+    "fr": "French",
+    "es": "Spanish",
+    "de": "German",
+    "zh": "Chinese",
 }
 
 
@@ -63,3 +78,51 @@ class LanguageDetector:
         if language is None:
             return self.fallback_code
         return self._language_to_code.get(language, self.fallback_code)
+
+
+_TRANSLATION_SYSTEM_PROMPT = """You are a professional translator. Translate \
+the user's text from {source_name} to {target_name}.
+
+Rules:
+- Output ONLY the translated text. No preamble, no explanation, no quotes.
+- Preserve the meaning, tone, and any proper nouns (product names, companies).
+- Do not answer or react to the content — translate it faithfully, even if it \
+is a question."""
+
+
+class Translator:
+    """Translates text between supported languages using the LLM.
+
+    Each translation is one LLM call. The same LLMClient as the generation
+    stage is reused — no extra model is loaded.
+    """
+
+    def __init__(self, llm: LLMClient) -> None:
+        self.llm = llm
+
+    def translate(self, text: str, source_code: str, target_code: str) -> str:
+        """Translate text from one supported language to another.
+
+        Args:
+            text: The text to translate.
+            source_code: Source language code (e.g. "fr").
+            target_code: Target language code (e.g. "en").
+
+        Returns:
+            The translated text. If source and target are identical, the text
+            is returned unchanged (no LLM call).
+        """
+        if source_code == target_code:
+            return text
+
+        system_prompt = _TRANSLATION_SYSTEM_PROMPT.format(
+            source_name=_CODE_TO_NAME[source_code],
+            target_name=_CODE_TO_NAME[target_code],
+        )
+        messages: list[BaseMessage] = [
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=text),
+        ]
+        translated = self.llm.invoke(messages)  # type: ignore
+        logger.info("Translated text %s -> %s", source_code, target_code)
+        return translated.strip()
