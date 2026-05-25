@@ -1,0 +1,111 @@
+{
+  "description": "Golden set for evaluating the tech-news-rag-assistant. 15 fact-based questions, each mapped to the article URL(s) that should be retrieved. All answers verified against article content.",
+  "questions": [
+    {
+      "id": "q01",
+      "question": "How much will Anthropic pay xAI per month for compute?",
+      "expected_article_urls": [
+        "https://techcrunch.com/2026/05/20/anthropic-will-pay-xai-1-25-billion-per-month-for-compute"
+      ]
+    },
+    {
+      "id": "q02",
+      "question": "Why is Intuit laying off more than 3,000 employees?",
+      "expected_article_urls": [
+        "https://techcrunch.com/2026/05/20/intuit-to-lay-off-over-3000-employees-to-refocus-on-ai"
+      ]
+    },
+    {
+      "id": "q03",
+      "question": "What new market did Jensen Huang say he found for Nvidia?",
+      "expected_article_urls": [
+        "https://techcrunch.com/2026/05/20/jensen-huang-says-hes-found-a-brand-new-200b-market-for-nvidia"
+      ]
+    },
+    {
+      "id": "q04",
+      "question": "How much did xAI lose last year?",
+      "expected_article_urls": [
+        "https://techcrunch.com/2026/05/20/xai-burned-6-4b-last-year-spacexs-ipo-filing-shows-why-the-spending-is-far-from-over"
+      ]
+    },
+    {
+      "id": "q05",
+      "question": "Which company turned down a $20M buyout offer and raised a seed round instead?",
+      "expected_article_urls": [
+        "https://techcrunch.com/2026/05/20/nanoclaw-creator-turns-down-20m-buyout-offer-raises-12m-seed-instead"
+      ]
+    },
+    {
+      "id": "q06",
+      "question": "What is Stability AI's new audio model able to create?",
+      "expected_article_urls": [
+        "https://techcrunch.com/2026/05/20/stability-ai-release-a-new-audio-model-that-can-create-six-minute-songs"
+      ]
+    },
+    {
+      "id": "q07",
+      "question": "How much does Google's AI Ultra plan cost per month?",
+      "expected_article_urls": [
+        "https://www.engadget.com/2176060/the-google-ai-ultra-plan-now-starts-at-100-a-month"
+      ]
+    },
+    {
+      "id": "q08",
+      "question": "What did Airbnb expand into beyond home rentals?",
+      "expected_article_urls": [
+        "https://www.engadget.com/2177545/airbnb-expands-into-hotel-bookings-groceries",
+        "https://techcrunch.com/2026/05/20/airbnb-gets-into-hotels-expands-ai-for-host-onboarding-and-customer-support"
+      ]
+    },
+    {
+      "id": "q09",
+      "question": "Why did China ban the Nvidia RTX 5090D V2?",
+      "expected_article_urls": [
+        "https://arstechnica.com/tech-policy/2026/05/china-banned-rtx-5090d-v2-while-nvidia-ceo-jensen-huang-was-visiting"
+      ]
+    },
+    {
+      "id": "q10",
+      "question": "What deal did Apple strike with the startup Animato?",
+      "expected_article_urls": [
+        "https://9to5mac.com/2026/05/19/apple-strikes-talent-and-ip-deal-with-virtual-avatar-startup-animato"
+      ]
+    },
+    {
+      "id": "q11",
+      "question": "Which school district is replacing 30,000 Windows PCs and Chromebooks with Apple devices?",
+      "expected_article_urls": [
+        "https://9to5mac.com/2026/05/20/kansas-city-public-schools-to-replace-30000-windows-pcs-and-chromebooks-with-apple-devices"
+      ]
+    },
+    {
+      "id": "q12",
+      "question": "What old math problem does OpenAI claim to have solved?",
+      "expected_article_urls": [
+        "https://techcrunch.com/2026/05/20/openai-claims-it-solved-an-80-year-old-math-problem-for-real-this-time"
+      ]
+    },
+    {
+      "id": "q13",
+      "question": "When might OpenAI's IPO happen?",
+      "expected_article_urls": [
+        "https://techcrunch.com/2026/05/20/openai-barrels-toward-ipo-that-may-happen-in-september"
+      ]
+    },
+    {
+      "id": "q14",
+      "question": "How much did the AI phishing startup founded by a former Iron Dome researcher raise?",
+      "expected_article_urls": [
+        "https://techcrunch.com/2026/05/19/from-teen-hacker-to-iron-dome-researcher-this-founder-raised-28m-to-fight-ai-phishing"
+      ]
+    },
+    {
+      "id": "q15",
+      "question": "What encryption change did Discord roll out for voice and video calls?",
+      "expected_article_urls": [
+        "https://9to5mac.com/2026/05/20/discord-now-uses-end-to-end-encryption-for-all-voice-and-video-calls-by-default"
+      ]
+    }
+  ]
+}
