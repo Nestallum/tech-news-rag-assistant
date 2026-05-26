@@ -53,14 +53,14 @@ body {
 
 .intro h1 {
   font-family: var(--serif);
-  font-size: 3rem;
+  font-size: 2.5rem;
   font-weight: 500;
   letter-spacing: -0.015em;
   margin-bottom: 0.75rem;
 }
 
 .intro p {
-  font-size: 1.2rem;
+  font-size: 1.05rem;
   color: var(--ink-soft);
 }
 
@@ -81,7 +81,7 @@ body {
   background: var(--surface);
   border: 0.5px solid var(--line);
   color: var(--ink);
-  font-size: 1.08rem;
+  font-size: 1rem;
   line-height: 1.55;
   padding: 0.85rem 1.3rem;
   border-radius: 20px 20px 6px 20px;
@@ -90,15 +90,15 @@ body {
 
 .answer {
   font-family: var(--serif);
-  font-size: 1.32rem;
-  line-height: 1.8;
+  font-size: 1.15rem;
+  line-height: 1.78;
   color: var(--ink);
   animation: fade-in 0.4s ease;
 }
 
 .answer.error {
   font-family: var(--sans);
-  font-size: 1.08rem;
+  font-size: 1rem;
   color: var(--ink-soft);
 }
 
@@ -115,7 +115,7 @@ body {
 }
 
 .sources-label {
-  font-size: 0.92rem;
+  font-size: 0.82rem;
   letter-spacing: 0.07em;
   text-transform: uppercase;
   color: var(--ink-faint);
@@ -138,12 +138,12 @@ body {
 }
 
 .source-title {
-  font-size: 1.12rem;
+  font-size: 1rem;
   color: var(--ink);
 }
 
 .source-pub {
-  font-size: 0.98rem;
+  font-size: 0.88rem;
   font-style: italic;
   color: var(--ink-faint);
   margin-top: 5px;
@@ -152,7 +152,7 @@ body {
 /* Loading state */
 .loading {
   font-family: var(--serif);
-  font-size: 1.32rem;
+  font-size: 1.15rem;
   color: var(--ink-faint);
 }
 
@@ -186,7 +186,7 @@ body {
   resize: none;
   background: transparent;
   font-family: var(--sans);
-  font-size: 1.12rem;
+  font-size: 1.02rem;
   line-height: 1.5;
   color: var(--ink);
   max-height: 200px;
@@ -236,7 +236,7 @@ body {
   border-radius: 999px;
   padding: 0.6rem 1.2rem;
   font-family: var(--sans);
-  font-size: 0.98rem;
+  font-size: 0.9rem;
   color: var(--ink-soft);
   cursor: pointer;
   transition: background 0.15s;
