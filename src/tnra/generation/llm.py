@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import os
 
-from gradio.server_messages import BaseMessage
+from langchain_core.messages import BaseMessage
 from langchain_groq import ChatGroq
 from pydantic import BaseModel, Field
 

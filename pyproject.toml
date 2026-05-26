@@ -14,7 +14,7 @@ keywords = [
     "llm",
     "groq",
     "tech-news",
-    "gradio",
+    "fastapi",
     "huggingface-spaces",
     "mlops",
 ]
@@ -52,7 +52,6 @@ dependencies = [
     "lxml>=5.2",                        # fast XML parser for feedparser/bs4
     "tenacity>=9.0",                    # retry with exponential backoff for network calls
     # --- Demo ---
-    "gradio>=5.0",
     # --- Config & utilities ---
     "omegaconf>=2.3",
     "pydantic>=2.8",                    # typed config validation + RAG response schemas
@@ -61,6 +60,8 @@ dependencies = [
     "rich>=13.7",                       # nicer CLI output (logger, progress, eval reports)
     "trafilatura>=2.0.0",
     "tiktoken>=0.13.0",
+    "fastapi>=0.136.1",
+    "uvicorn>=0.47.0",
 ]
 
 # -----------------------------------------------------------------------------

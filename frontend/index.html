@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tech News Assistant</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <main class="app">
+    <header class="intro" id="intro">
+      <h1>Caught up on tech news?</h1>
+      <p>Ask a question — get a grounded answer with its sources.</p>
+    </header>
+
+    <section class="thread" id="thread" aria-live="polite"></section>
+
+    <div class="composer" id="composer">
+      <textarea
+        id="question"
+        rows="1"
+        placeholder="Ask about a recent tech story…"
+        autocomplete="off"
+      ></textarea>
+      <button id="send" aria-label="Send question">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+          <path d="M12 19V5M5 12l7-7 7 7" fill="none" stroke="currentColor"
+            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </button>
+    </div>
+
+    <div class="examples" id="examples">
+      <button class="example">What's the latest AI funding round?</button>
+      <button class="example">Any recent product launches?</button>
+      <button class="example">What are the big tech companies up to?</button>
+    </div>
+  </main>
+
+  <script src="/script.js"></script>
+</body>
+</html>
