@@ -6,12 +6,14 @@ its cited sources. Built incrementally — the RAG-to-UI bridge first.
 
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
 
 import chromadb
 import gradio as gr
 from dotenv import load_dotenv
+from groq import RateLimitError
 from omegaconf import OmegaConf
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
@@ -38,6 +40,25 @@ def _format_sources(response: RAGResponse) -> str:
     return "\n".join(lines)
 
 
+def _format_retry_delay(message: str) -> str:
+    """Extract a retry delay from a Groq rate-limit message and round it.
+
+    Groq messages contain a phrase like 'try again in 12m11.808s'. This pulls
+    out the minutes (and seconds) and renders a human-readable estimate.
+    Returns an empty string if no delay can be found.
+    """
+    match = re.search(r"try again in (?:(\d+)m)?([\d.]+)s", message)  # type: ignore
+    if not match:
+        return ""
+    minutes = int(match.group(1)) if match.group(1) else 0
+    seconds = float(match.group(2))
+    # Round up to the next minute for a clean estimate.
+    total_minutes = minutes + (1 if seconds > 0 else 0)
+    if total_minutes <= 1:
+        return "about a minute"
+    return f"about {total_minutes} minutes"
+
+
 def answer(question: str, retriever: Retriever, generator: Generator) -> tuple[str, str]:
     """Run the full RAG pipeline for one question.
 
@@ -48,13 +69,29 @@ def answer(question: str, retriever: Retriever, generator: Generator) -> tuple[s
 
     Returns:
         A pair (answer_text, sources_markdown) for the UI to display.
+        On a Groq rate-limit error, returns a friendly message instead of failing.
     """
     question = question.strip()
     if not question:
         return "Please enter a question.", ""
 
-    passages = retriever.retrieve(question)
-    response = generator.generate(question, passages)
+    try:
+        passages = retriever.retrieve(question)
+        response = generator.generate(question, passages)
+    except RateLimitError as exc:
+        delay = _format_retry_delay(str(exc))
+        logger.warning("Groq rate limit reached")
+        wait = f" Please try again in {delay}." if delay else " Please try again later."
+        return (
+            f"The language model is temporarily unavailable (usage limit reached).{wait}",
+            "",
+        )
+    except Exception:
+        logger.exception("Unexpected error while answering")
+        return (
+            "The assistant is temporarily unavailable. Please try again later.",
+            "",
+        )
 
     logger.info("Answered a question — %d source(s)", len(response.sources))
     return response.answer, _format_sources(response)
