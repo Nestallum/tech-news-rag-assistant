@@ -35,7 +35,7 @@ sources.
 
 The system is a four-stage pipeline:
 
-![Architecture diagram](assets/figures/architecture.svg)
+![Architecture diagram](assets/figures/architecture.png)
 
 1. **Ingestion** — tech news articles are scraped from RSS feeds, cleaned,
    split into chunks, embedded with BGE-large, and indexed in ChromaDB.
