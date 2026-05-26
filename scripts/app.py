@@ -121,7 +121,7 @@ def main() -> None:
     retriever, generator = build_pipelines()
     demo = build_demo(retriever, generator)
     logger.info("Launching Gradio app")
-    demo.launch()
+    demo.launch(server_name="0.0.0.0", server_port=7860)
 
 
 if __name__ == "__main__":
