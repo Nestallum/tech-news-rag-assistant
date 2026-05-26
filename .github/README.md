@@ -6,7 +6,7 @@ sources.
 
 **🟢 Live demo:** https://huggingface.co/spaces/Nestallum/tech-news-rag-assistant
 
-![Demo screenshot](assets/figures/demo.png)
+![Demo screenshot](../assets/figures/demo.png)
 
 ## Features
 
@@ -24,7 +24,7 @@ sources.
 
 The system is a four-stage pipeline:
 
-![Architecture diagram](assets/figures/architecture.svg)
+![Architecture diagram](../assets/figures/architecture.svg)
 
 1. **Ingestion** — tech news articles are scraped from RSS feeds, cleaned,
    split into chunks, embedded with BGE-large, and indexed in ChromaDB.
