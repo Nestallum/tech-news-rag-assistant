@@ -51,7 +51,9 @@ The system is a four-stage pipeline:
 ## Evaluation
 
 The system is evaluated on a hand-curated golden set of 15 fact-based
-questions, each mapped to the article(s) that should be retrieved.
+questions, each mapped to the article(s) that should be retrieved,
+against a 204-chunk corpus. A larger, stratified evaluation is planned
+for v2.
 
 Retrieval is scored with **Recall@k** (is a correct article among the top *k*?)
 and **MRR** (how highly is it ranked?). Answer quality is scored by an
@@ -59,11 +61,11 @@ and **MRR** (how highly is it ranked?). Answer quality is scored by an
 
 | Metric            | Score        |
 | ----------------- | ------------ |
-| Recall@1          | _TBD_        |
-| Recall@5          | _TBD_        |
-| MRR               | _TBD_        |
-| Faithfulness (1–5)| _TBD_        |
-| Relevance (1–5)   | _TBD_        |
+| Recall@1          | 0.933        |
+| Recall@5          | 1.000        |
+| MRR               | 0.967        |
+| Faithfulness (1–5)| 5.00         |
+| Relevance (1–5)   | 5.00         |
 
 _The LLM-as-judge gives an indicative measure of answer quality, not an exact
 ground truth: it reflects a model's assessment and carries some variability._
