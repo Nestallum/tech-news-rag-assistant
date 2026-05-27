@@ -53,14 +53,14 @@ body {
 
 .intro h1 {
   font-family: var(--serif);
-  font-size: 2.7rem;
+  font-size: 2.75rem;
   font-weight: 500;
   letter-spacing: -0.015em;
   margin-bottom: 0.75rem;
 }
 
 .intro p {
-  font-size: 1.05rem;
+  font-size: 1.0rem;
   color: var(--ink-soft);
 }
 
@@ -194,7 +194,7 @@ body {
 }
 
 .composer textarea::placeholder {
-  color: var(--ink-faint);
+  color: var(--ink-soft);
 }
 
 #send {
@@ -237,7 +237,7 @@ body {
   padding: 0.6rem 1.2rem;
   font-family: var(--sans);
   font-size: 0.9rem;
-  color: var(--ink-soft);
+  color: var(--ink);
   cursor: pointer;
   transition: background 0.15s;
 }
