@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import os
 
+from langchain_cerebras import ChatCerebras
 from langchain_core.messages import BaseMessage
-from langchain_groq import ChatGroq
 from pydantic import BaseModel, Field
 
 from tnra.utils.logger import get_logger
@@ -21,7 +21,7 @@ logger = get_logger(__name__)
 class LLMConfig(BaseModel):
     """Validated schema for the `llm` section of generation.yaml."""
 
-    provider: str = Field(pattern="^groq$")
+    provider: str = Field(pattern="^cerebras$")
     model: str
     temperature: float = Field(ge=0.0, le=2.0)
     max_tokens: int = Field(gt=0)
@@ -30,7 +30,7 @@ class LLMConfig(BaseModel):
 
 
 class LLMClient:
-    """Load-once wrapper around a Groq chat model.
+    """Load-once wrapper around a Cerebras chat model.
 
     Instantiated a single time at startup and reused for every query
     (load once, serve many).
@@ -42,12 +42,12 @@ class LLMClient:
         logger.info("LLMClient ready (provider=%s, model=%s)", cfg.provider, cfg.model)
 
     @staticmethod
-    def _build_chat(cfg: LLMConfig) -> ChatGroq:
-        """Instantiate the underlying ChatGroq client."""
-        api_key = os.environ.get("GROQ_API_KEY")
+    def _build_chat(cfg: LLMConfig) -> ChatCerebras:
+        """Instantiate the underlying ChatCerebras client."""
+        api_key = os.environ.get("CEREBRAS_API_KEY")
         if not api_key:
-            raise RuntimeError("GROQ_API_KEY is not set — add it to your .env file.")
-        return ChatGroq(
+            raise RuntimeError("CEREBRAS_API_KEY is not set — add it to your .env file.")
+        return ChatCerebras(
             model=cfg.model,
             temperature=cfg.temperature,
             max_tokens=cfg.max_tokens,
