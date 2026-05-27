@@ -45,25 +45,15 @@
              it collapses to its natural height at the bottom.
              The input box itself never leaves the DOM. -->
         <div class="dock" id="dock">
-
-            <!-- Centered block: welcome title (home only) + input box -->
             <div class="dock-center" id="dockCenter">
-
                 <div class="welcome-screen" id="welcomeScreen">
                     <h1>Caught up on tech news?</h1>
                 </div>
-
                 <div class="input-box-positioner">
                     <div class="input-container-box">
                         <div class="prompt-zone">
-                            <textarea
-                                id="userInput"
-                                placeholder="Ask something about latest tech news..."
-                                rows="1"
-                                maxlength="2000"
-                            ></textarea>
+                            <textarea id="userInput" placeholder="Ask something about latest tech news..." rows="1" maxlength="2000"></textarea>
                         </div>
-
                         <div class="options-zone">
                             <div class="left-options"></div>
                             <div class="right-options">
@@ -74,19 +64,15 @@
                         </div>
                     </div>
                 </div>
-
             </div>
-
-            <footer class="app-disclaimer-bar">
-                <div class="disclaimer">
-                    The assistant may display inaccurate info. Please verify important responses.
-                </div>
-            </footer>
-
         </div>
 
-    </div>
+        <footer class="app-disclaimer-bar">
+            <div class="disclaimer">
+                AI can make mistakes. Please verify important information.
+            </div>
+        </footer>
 
-    <script src="script.js"></script>
+    </div> <script src="script.js"></script>
 </body>
 </html>

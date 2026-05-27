@@ -106,7 +106,7 @@ body {
 .message {
     display: flex;
     margin-bottom: 32px;
-    animation: fadeInUp 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+    animation: fadeInUp 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
 }
 
 .user-message-wrapper {
@@ -261,32 +261,35 @@ body {
 .dock {
     flex-shrink: 0;
     background-color: var(--bg-main);
-    padding: 0 24px 8px 24px;
+    padding: 0 24px 0px 24px;
     z-index: 8;
     display: flex;
     flex-direction: column;
+    transition: flex 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-/* HOME: the dock fills all the space left below the header. */
 .app-container:not(.has-content) .dock {
     flex: 1;
     min-height: 0;
 }
 
-/* The centered block: welcome title + input box.
-   `margin: auto` distributes free space equally above and below,
-   so the block sits at the true vertical center of the dock.
-   The footer keeps its own box below and is excluded from that math. */
 .dock-center {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 32px;
     width: 100%;
+    transition: margin-top 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .app-container:not(.has-content) .dock-center {
-    margin: auto 0;
+    margin-top: 22vh;
+    margin-bottom: auto;
+}
+
+.app-container.has-content .dock-center {
+    margin-top: 0;
+    margin-bottom: 0;
 }
 
 /* ---- Welcome title (home only) ---- */
@@ -407,8 +410,10 @@ body {
 /* ---- Footer disclaimer (inside the dock, below the input) ---- */
 .app-disclaimer-bar {
     width: 100%;
-    padding-top: 10px;
-    flex-shrink: 0;
+    flex-shrink: 0; /* Empêche le footer de se faire écraser */
+    padding: 16px 0;
+    background-color: var(--bg-main);
+    /* On enlève : position: fixed, bottom: 0, z-index, etc. */
 }
 
 .disclaimer {
