@@ -1,17 +1,66 @@
+/* ==========================================================================
+   Tech News RAG Assistant — stylesheet
+   --------------------------------------------------------------------------
+   Layout is a fixed-height flex column:
+
+       .app-container  (100dvh, column flex)
+           ├── .app-header        natural height
+           ├── .chat-area         flex: 1, scrolls (chat mode only)
+           ├── .dock              holds the input; grows to fill on home,
+           │                      collapses to natural height in chat mode
+           └── .app-disclaimer-bar  natural height, always visible
+
+   State is driven by the `has-content` class on .app-container, which is
+   added by script.js after the first question is sent. During the brief
+   home → chat transition, `is-transitioning` is also present and enables
+   the slide animation on the input box.
+   ========================================================================== */
+
+
+/* ---------- Design tokens ---------- */
+
 :root {
-    --bg-main: #131314;
-    --bg-surface: #1e1f20;
-    --bg-input: #1e1f20;
-    --bg-user-bubble: #2a2b2d;
-    --text-primary: #e3e3e3;
-    --text-secondary: #b4b4b4;
-    --border-color: #3c4043;
-    --font-sans: 'Google Sans', 'Roboto', sans-serif;
-    --font-text: 'Roboto', sans-serif;
+    /* Surfaces */
+    --bg-main:           #131314;
+    --bg-surface:        #1e1f20;
+    --bg-input:          #1e1f20;
+    --bg-user-bubble:    #2a2b2d;
+    --bg-avatar:         #202124;
+    --bg-source-hover:   #262729;
+    --bg-button-idle:    #282a2c;
+    --bg-button-hover:   #333538;
+    --bg-button-active:  #3c4043;
+    --bg-button-active-hover: #4f5356;
+
+    /* Text */
+    --text-primary:      #e3e3e3;
+    --text-secondary:    #b4b4b4;
+    --text-on-light:     #f5f5f7;
+    --text-placeholder:  rgba(255, 255, 255, 0.3);
+    --text-error:        #f28b82;
+    --text-button-idle:  #5f6368;
+
+    /* Borders */
+    --border-color:        #3c4043;
+    --border-subtle:       rgba(255, 255, 255, 0.04);
+    --border-subtle-hover: rgba(255, 255, 255, 0.1);
+    --border-input-focus:  rgba(255, 255, 255, 0.2);
+
+    /* Typography */
+    --font-sans:  'Google Sans', 'Roboto', sans-serif;
+    --font-text:  'Roboto', sans-serif;
     --font-serif: 'Source Serif 4', Georgia, serif;
-    --column: 720px;
+
+    /* Layout */
+    --column:        720px;
     --header-height: 48px;
+
+    /* Motion */
+    --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
+
+
+/* ---------- Reset ---------- */
 
 * {
     box-sizing: border-box;
@@ -27,15 +76,15 @@ body {
     overflow: hidden;
 }
 
-/* ===== Layout: a fixed-height flex column =====
-   header (natural) / chat-area (flex:1, scrolls) / dock (natural) */
+
+/* ---------- App shell ---------- */
+
 .app-container {
     display: flex;
     flex-direction: column;
     height: 100dvh;
 }
 
-/* ---- Header / nav bar ---- */
 .app-header {
     flex-shrink: 0;
     height: var(--header-height);
@@ -53,13 +102,15 @@ body {
 }
 
 .sub-brand {
-    font-size: 14px;
-    color: var(--text-secondary);
-    font-weight: 400;
     margin-left: 6px;
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--text-secondary);
 }
 
-/* ---- Scrollable conversation area ---- */
+
+/* ---------- Chat area (scroll container) ---------- */
+
 .chat-area {
     flex: 1;
     min-height: 0;
@@ -77,25 +128,27 @@ body {
     width: 0;
 }
 
-/* Thin gradient fade just below the nav bar */
+/* Thin gradient mask under the header to soften scroll bleed-through. */
 .app-container.has-content .chat-area::before {
     content: "";
     position: fixed;
+    top: var(--header-height);
     left: 0;
     right: 0;
-    top: var(--header-height);
     height: 32px;
     background: linear-gradient(to bottom, var(--bg-main) 20%, transparent);
     pointer-events: none;
     z-index: 9;
 }
 
-/* ---- Conversation ---- */
+
+/* ---------- Conversation thread ---------- */
+
 .conversation-container {
     width: 100%;
     max-width: var(--column);
     margin: 0 auto;
-    padding: 32px 0 40px 0;
+    padding: 32px 0 40px;
     display: none;
 }
 
@@ -106,7 +159,7 @@ body {
 .message {
     display: flex;
     margin-bottom: 32px;
-    animation: fadeInUp 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+    animation: fadeInUp 0.3s var(--ease-out) forwards;
 }
 
 .user-message-wrapper {
@@ -115,39 +168,39 @@ body {
 }
 
 .user-bubble {
+    max-width: 85%;
+    padding: 12px 20px;
     background-color: var(--bg-user-bubble);
     color: var(--text-primary);
-    padding: 12px 20px;
     border-radius: 20px 20px 4px 20px;
-    max-width: 85%;
-    overflow-wrap: break-word;
-    word-break: break-word;
     font-family: var(--font-text);
     font-size: 16px;
     line-height: 1.5;
     white-space: pre-wrap;
+    overflow-wrap: break-word;
+    word-break: break-word;
 }
 
 .assistant-message {
-    gap: 18px;
     align-items: flex-start;
+    gap: 18px;
     width: 100%;
 }
 
 .avatar {
+    flex-shrink: 0;
     width: 32px;
     height: 32px;
+    margin-top: 4px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    flex-shrink: 0;
-    margin-top: 4px;
 }
 
 .assistant-avatar {
-    background-color: #202124;
-    color: #b4b4b4;
+    background-color: var(--bg-avatar);
+    color: var(--text-secondary);
 }
 
 .assistant-avatar .material-symbols-rounded {
@@ -156,11 +209,11 @@ body {
 
 .message-content {
     flex: 1;
+    width: 100%;
     font-family: var(--font-text);
     font-size: 16px;
     line-height: 1.6;
     color: var(--text-primary);
-    width: 100%;
 }
 
 .formatted-text {
@@ -168,23 +221,29 @@ body {
 }
 
 .error-text {
-    color: #f28b82;
+    color: var(--text-error);
 }
 
-/* ---- Sources ---- */
+
+/* ---------- Source cards ---------- */
+
 .sources-container {
     margin-top: 32px;
-    border-top: 1px solid var(--border-color);
     padding-top: 16px;
+    border-top: 1px solid var(--border-color);
+}
+
+.sources-container.is-hidden {
+    display: none;
 }
 
 .sources-title {
+    margin-bottom: 16px;
     font-family: var(--font-serif);
     font-size: 12px;
     font-weight: 500;
     letter-spacing: 1.5px;
     color: var(--text-secondary);
-    margin-bottom: 16px;
 }
 
 .sources-list {
@@ -195,31 +254,33 @@ body {
 }
 
 .source-card {
-    background-color: var(--bg-surface);
-    border: 1px solid rgba(255, 255, 255, 0.04);
-    border-radius: 12px;
-    padding: 16px;
-    text-decoration: none;
-    color: inherit;
-    transition: background-color 0.2s, border-color 0.2s;
-
     display: flex;
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
     gap: 16px;
     width: 100%;
+    padding: 16px;
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    color: inherit;
+    text-decoration: none;
+    transition: background-color 0.2s, border-color 0.2s;
 }
 
+.source-card:hover {
+    background-color: var(--bg-source-hover);
+    border-color: var(--border-subtle-hover);
+}
 
 .source-content {
     flex: 1;
+    min-width: 0;
     display: flex;
     flex-direction: column;
     gap: 6px;
-    min-width: 0;
 }
-
 
 .source-icon {
     flex-shrink: 0;
@@ -228,14 +289,8 @@ body {
     transition: opacity 0.2s;
 }
 
-
 .source-card:hover .source-icon {
     opacity: 1;
-}
-
-.source-card:hover {
-    background-color: #262729;
-    border-color: rgba(255, 255, 255, 0.1);
 }
 
 .source-title {
@@ -243,7 +298,7 @@ body {
     font-size: 16px;
     font-weight: 400;
     line-height: 1.4;
-    color: #f5f5f7;
+    color: var(--text-on-light);
 }
 
 .source-meta {
@@ -254,25 +309,27 @@ body {
     letter-spacing: 0.5px;
 }
 
-/* ===== Bottom dock =====
-   Stable container for (centered block) + footer.
-   HOME : dock grows to fill the page; .dock-center is pushed to the
-          vertical middle by symmetric `margin: auto`.
-   CHAT : dock collapses to natural height, sitting at the bottom;
-          .dock-center holds only the input box. */
+
+/* ---------- Bottom dock & welcome screen ----------
+   On the home screen, .dock fills the page (flex: 1) and the dock-center
+   block is justified slightly above the optical middle — same trick as
+   the Google homepage. The asymmetric padding pulls it just enough above
+   geometric center to feel balanced to the eye. */
+
 .dock {
     flex-shrink: 0;
+    padding: 0 24px;
     background-color: var(--bg-main);
-    padding: 0 24px 0px 24px;
-    z-index: 8;
     display: flex;
     flex-direction: column;
-    transition: flex 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+    z-index: 8;
 }
 
 .app-container:not(.has-content) .dock {
     flex: 1;
     min-height: 0;
+    justify-content: center;
+    padding-bottom: 22vh; /* shifts the centered block toward the optical middle */
 }
 
 .dock-center {
@@ -281,20 +338,8 @@ body {
     align-items: center;
     gap: 32px;
     width: 100%;
-    transition: margin-top 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-.app-container:not(.has-content) .dock-center {
-    margin-top: 22vh;
-    margin-bottom: auto;
-}
-
-.app-container.has-content .dock-center {
-    margin-top: 0;
-    margin-bottom: 0;
-}
-
-/* ---- Welcome title (home only) ---- */
 .welcome-screen {
     text-align: center;
     animation: fadeIn 0.8s ease;
@@ -309,32 +354,41 @@ body {
     font-size: 44px;
     font-weight: 400;
     letter-spacing: -0.5px;
-    color: #f5f5f7;
+    color: var(--text-on-light);
 }
 
-/* ---- Input box ---- */
+
+/* ---------- Input box ---------- */
+
 .input-box-positioner {
     width: 100%;
     max-width: var(--column);
     margin: 0 auto;
 }
 
+/* During the home → chat transition, the input box slides from its
+   centered home position down to its final docked position. The actual
+   translateY value is computed at runtime (FLIP technique). */
+.app-container.is-transitioning .input-box-positioner {
+    transition: transform 0.3s var(--ease-out);
+}
+
 .input-container-box {
     width: 100%;
+    padding: 16px 12px 12px;
     background-color: var(--bg-input);
+    border: 1px solid transparent;
     border-radius: 20px;
-    padding: 16px 12px 12px 12px;
     display: flex;
     flex-direction: column;
     gap: 8px;
-    border: 1px solid transparent;
-    transition: border-color 0.2s ease;
     cursor: text;
+    transition: border-color 0.2s ease;
 }
 
 .input-container-box:hover,
 .input-container-box:has(.prompt-zone textarea:focus) {
-    border-color: rgba(255, 255, 255, 0.2);
+    border-color: var(--border-input-focus);
 }
 
 .prompt-zone {
@@ -343,22 +397,21 @@ body {
 
 .prompt-zone textarea {
     width: 100%;
+    max-height: 180px;
+    padding: 0 4px;
     background: transparent;
     border: none;
     outline: none;
+    resize: none;
+    overflow-y: auto;
     color: var(--text-primary);
     font-family: var(--font-text);
     font-size: 16px;
     line-height: 1.5;
-    resize: none;
-    max-height: 180px;
-    overflow-y: auto;
-    padding-left: 4px;
-    padding-right: 4px;
 }
 
 .prompt-zone textarea::placeholder {
-    color: rgba(255, 255, 255, 0.3);
+    color: var(--text-placeholder);
 }
 
 .prompt-zone textarea::-webkit-scrollbar {
@@ -366,7 +419,7 @@ body {
 }
 
 .prompt-zone textarea::-webkit-scrollbar-thumb {
-    background: #3c4043;
+    background: var(--border-color);
     border-radius: 2px;
 }
 
@@ -379,55 +432,58 @@ body {
 }
 
 .right-options button {
-    border: none;
-    cursor: pointer;
     width: 36px;
     height: 36px;
+    border: none;
     border-radius: 50%;
+    background-color: var(--bg-button-idle);
+    color: var(--text-button-idle);
     display: flex;
     align-items: center;
     justify-content: center;
+    cursor: pointer;
     transition: background-color 0.2s, color 0.2s;
-    background-color: #282a2c;
-    color: #5f6368;
 }
 
 .right-options button:hover {
-    background-color: #333538;
+    background-color: var(--bg-button-hover);
     color: var(--text-primary);
 }
 
 .right-options button.is-active {
-    background-color: #3c4043;
+    background-color: var(--bg-button-active);
     color: #ffffff;
 }
 
 .right-options button.is-active:hover {
-    background-color: #4f5356;
+    background-color: var(--bg-button-active-hover);
 }
 
 .right-options button .material-symbols-rounded {
     font-size: 20px;
 }
 
-/* ---- Footer disclaimer (inside the dock, below the input) ---- */
+
+/* ---------- Footer disclaimer ---------- */
+
 .app-disclaimer-bar {
+    flex-shrink: 0;
     width: 100%;
-    flex-shrink: 0; /* Empêche le footer de se faire écraser */
     padding: 16px 0;
     background-color: var(--bg-main);
-    /* On enlève : position: fixed, bottom: 0, z-index, etc. */
 }
 
 .disclaimer {
+    max-width: var(--column);
+    margin: 0 auto;
     font-size: 12px;
     color: var(--text-secondary);
     text-align: center;
-    max-width: var(--column);
-    margin: 0 auto;
 }
 
-/* ---- Loading state ---- */
+
+/* ---------- Loading state ---------- */
+
 .status-loading-wrapper {
     display: flex;
     flex-direction: column;
@@ -452,24 +508,35 @@ body {
 
 .skeleton-line {
     height: 16px;
+    border-radius: 4px;
     background: linear-gradient(90deg, #1e1f20 25%, #2a2b2c 50%, #1e1f20 75%);
     background-size: 200% 100%;
     animation: loadingShimmer 1.5s infinite;
-    border-radius: 4px;
 }
+
 .skeleton-line:nth-child(1) { width: 85%; }
 .skeleton-line:nth-child(2) { width: 95%; }
 .skeleton-line:nth-child(3) { width: 30%; }
 
+
+/* ---------- Animations ---------- */
+
 @keyframes loadingShimmer {
-    0% { background-position: 200% 0; }
+    0%   { background-position:  200% 0; }
     100% { background-position: -200% 0; }
 }
 
 @keyframes pulseText {
     0%, 100% { opacity: 0.6; }
-    50% { opacity: 1; }
+    50%      { opacity: 1;   }
 }
 
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-@keyframes fadeInUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0);    }
+}
