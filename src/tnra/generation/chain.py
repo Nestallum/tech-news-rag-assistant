@@ -181,7 +181,7 @@ def answer_question(
 
     # Retrieval is strong enough: call the LLM and build the cited sources.
     raw_answer = normalize_citation_markers(generate_answer(question, results, llm))
-    logger.info("Raw answer repr: %r", raw_answer)
+    logger.debug("Raw answer repr: %r", raw_answer)
     sources = extract_sources(raw_answer, results)
     clean_answer = strip_markers(raw_answer)
 
