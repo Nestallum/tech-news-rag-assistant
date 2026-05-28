@@ -43,8 +43,8 @@ The system is a four-stage pipeline:
    their results are fused with RRF, deduplicated at the article level, and
    reranked by a cross-encoder to keep the most relevant passages.
 3. **Generation** — the question and retrieved passages are passed to a large
-   language model (Llama 3.3 70B via Groq), which writes an answer grounded in
-   the passages. A retrieval-score guard blocks answers when retrieval is weak.
+   language model (gpt-oss-120b via Cerebras), which writes an answer grounded
+   in the passages. A retrieval-score guard blocks answers when retrieval is weak.
 4. **Evaluation** — a golden set of fact-based questions measures retrieval
    quality (Recall@k, MRR) and answer quality (LLM-as-judge).
 
@@ -78,8 +78,8 @@ ground truth: it reflects a model's assessment and carries some variability._
 - **Vector store:** ChromaDB
 - **Sparse retrieval:** BM25
 - **Reranker:** cross-encoder (Sentence-Transformers)
-- **LLM:** Llama 3.3 70B via Groq
-- **Interface:** Gradio
+- **LLM:** gpt-oss-120b via Cerebras
+- **Interface:** FastAPI + vanilla HTML/CSS/JS frontend
 - **Config:** OmegaConf + Pydantic
 - **Tooling:** uv, ruff, pytest
 - **Deployment:** Docker, Hugging Face Spaces, GitHub Actions CI
@@ -106,7 +106,7 @@ tech-news-rag-assistant/
 ### Prerequisites
 
 - Python 3.14 and [uv](https://docs.astral.sh/uv/)
-- A [Groq](https://console.groq.com/) API key
+- A [Cerebras](https://cloud.cerebras.ai/) API key
 
 ### Installation
 
@@ -119,7 +119,7 @@ uv sync --extra dev
 Create a `.env` file at the project root with your Groq key:
 
 ```
-GROQ_API_KEY=your_key_here
+CEREBRAS_API_KEY=your_key_here
 ```
 
 ### Usage
@@ -133,7 +133,7 @@ uv run python scripts/ingest.py
 Launch the demo locally:
 
 ```bash
-uv run python scripts/app.py
+uv run uvicorn app:app --app-dir scripts --host 0.0.0.0 --port 7860
 ```
 
 Run the evaluation on the golden set:
@@ -150,9 +150,10 @@ uv run python scripts/evaluate.py
   It is not designed for broad, corpus-wide requests like "summarize this
   week's news": summarizing an entire corpus is a different task from
   retrieval-augmented question answering.
-- **Corpus freshness** — the index is a snapshot. A planned improvement is to
-  purge articles older than one month on each ingestion run to keep the corpus
-  current.
+- **Corpus size & freshness** — the current snapshot has 428 chunks from
+  ~100 articles. A planned v2 will add automated daily ingestion (GitHub
+  Actions) and a 30-day retention policy to keep the corpus fresh and grow
+  the volume to ~2000–3000 chunks for more robust retrieval.
 - **Multilingual support** — the system is English-only; multilingual
   question answering is a possible future extension.
 
