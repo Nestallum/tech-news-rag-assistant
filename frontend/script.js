@@ -109,7 +109,38 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function renderAnswer(answer) {
         assistantAnswerText.classList.remove("error-text");
-        assistantAnswerText.textContent = answer;
+        assistantAnswerText.innerHTML = "";
+
+        const paragraphs = answer.split(/\n\n+/);
+        for (const paragraph of paragraphs) {
+            const text = paragraph.trim();
+            if (!text) continue;
+
+            const p = document.createElement("p");
+            p.innerHTML = formatInline(escapeHtml(text));
+            assistantAnswerText.appendChild(p);
+        }
+    }
+
+    /**
+     * Escape HTML special characters so untrusted text can be safely
+     * injected via innerHTML. Must be applied BEFORE formatInline,
+     * otherwise the markdown-to-HTML step would be defeated.
+     */
+    function escapeHtml(text) {
+        return text
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;");
+    }
+
+    /**
+     * Convert a minimal markdown subset (**bold** only) into inline HTML.
+     * The LLM prompt restricts formatting to bold for key terms; lists,
+     * headers, and other markdown are intentionally not supported.
+     */
+    function formatInline(text) {
+        return text.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
     }
 
     function renderSources(sources) {

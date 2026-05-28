@@ -210,18 +210,29 @@ body {
 .message-content {
     flex: 1;
     width: 100%;
-    font-family: var(--font-text);
+    font-family: var(--font-serif);
     font-size: 16px;
     line-height: 1.6;
+    font-weight: 400;
     color: var(--text-primary);
-}
-
-.formatted-text {
-    white-space: pre-wrap;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 .error-text {
     color: var(--text-error);
+}
+
+.message-content p {
+    margin: 0 0 0.85em 0;
+}
+
+.message-content p:last-child {
+    margin-bottom: 0;
+}
+
+.message-content strong {
+    font-weight: 700;
 }
 
 

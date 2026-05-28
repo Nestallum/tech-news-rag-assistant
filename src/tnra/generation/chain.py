@@ -21,6 +21,40 @@ logger = get_logger(__name__)
 _MARKER_PATTERN = re.compile(r"\[(\d+)\]")
 
 
+# Unicode bracket variants the LLM sometimes emits instead of plain ASCII [n].
+# gpt-oss-120b in particular reaches for 【 】 when the prompt enables markdown
+# or multi-paragraph formatting. Extend this map if new variants appear in logs.
+_BRACKET_NORMALIZATION = str.maketrans({"【": "[", "】": "]"})
+
+# OpenAI-style citation refs that gpt-oss-120b sometimes emits, e.g.
+# "[1†L9-L13]" or "[2†source]". We keep the passage number and drop the
+# "†..." annotation, mapping back to the canonical [n] form.
+_LINE_REF_PATTERN = re.compile(r"\[(\d+)†[^\]]*\]")
+
+
+def normalize_citation_markers(text: str) -> str:
+    """Normalize non-standard citation markers to canonical ASCII [n] form.
+
+    gpt-oss-120b sometimes emits citations in formats other than the plain
+    [n] the prompt asks for:
+      - Unicode bracket variants:  【1】       -> [1]
+      - OpenAI-style line refs:    [1†L9-L13] -> [1]
+
+    Downstream parsing (extract_sources, strip_markers) expects plain ASCII
+    [n], so we normalize at the boundary between the LLM and the rest of the
+    pipeline.
+
+    Args:
+        text: Raw LLM output, possibly containing non-standard markers.
+
+    Returns:
+        The text with all known marker variants mapped to canonical [n].
+    """
+    text = text.translate(_BRACKET_NORMALIZATION)
+    text = _LINE_REF_PATTERN.sub(r"[\1]", text)
+    return text
+
+
 def extract_sources(answer: str, results: list[RetrievalResult]) -> list[Source]:
     """Map the [n] markers used in the answer back to their source articles.
 
@@ -79,10 +113,13 @@ def strip_markers(text: str) -> str:
     # Remove a run of one or more markers, including separators between them
     # (e.g. "[2], [3]" or "[1] [2]") — so no orphan comma is left behind.
     text = re.sub(r"\[\d+\](?:\s*,?\s*\[\d+\])*", "", text)
-    # Collapse spaces left before punctuation.
-    text = re.sub(r"\s+([.,;:!?])", r"\1", text)
-    # Collapse doubled spaces.
-    text = re.sub(r"\s{2,}", " ", text)
+    # Collapse spaces (but not newlines) left before punctuation.
+    text = re.sub(r"[^\S\n]+([.,;:!?])", r"\1", text)
+    # Collapse runs of spaces/tabs, preserving paragraph breaks (\n\n).
+    text = re.sub(r"[^\S\n]{2,}", " ", text)
+    # Trim trailing spaces on each line and collapse 3+ newlines into 2.
+    text = re.sub(r"[^\S\n]+\n", "\n", text)
+    text = re.sub(r"\n{3,}", "\n\n", text)
     return text.strip()
 
 
@@ -143,7 +180,8 @@ def answer_question(
         )
 
     # Retrieval is strong enough: call the LLM and build the cited sources.
-    raw_answer = generate_answer(question, results, llm)
+    raw_answer = normalize_citation_markers(generate_answer(question, results, llm))
+    logger.info("Raw answer repr: %r", raw_answer)
     sources = extract_sources(raw_answer, results)
     clean_answer = strip_markers(raw_answer)
 
