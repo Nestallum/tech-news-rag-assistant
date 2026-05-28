@@ -15,7 +15,7 @@ llm:
   max_retries: 2
 
 guard:
-  min_retrieval_score: 0.3   # below this top score, skip the LLM and refuse
+  min_retrieval_score: 1.0   # below this top score, skip the LLM and refuse
   refusal_message: >-
     I couldn't find anything relevant in my news sources to answer that.
     This assistant covers recent consumer tech news — try rephrasing, or ask

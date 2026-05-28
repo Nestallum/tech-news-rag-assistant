@@ -5,9 +5,10 @@
 retrieval:
   # Phase 1 (initial retrieval): hybrid dense + sparse
   hybrid:
-    dense_top_k: 10                    # candidates from ChromaDB dense search
-    bm25_top_k: 10                     # candidates from BM25 sparse search
+    dense_top_k: 20                    # candidates from ChromaDB dense search
+    bm25_top_k: 20                     # candidates from BM25 sparse search
     rrf_k: 60                          # standard RRF constant (Cormack et al., 2009)
+    fused_top_k: 10                    # number of passages to keep after RRF fusion
 
   # Phase 2 (reranking): cross-encoder reranker on top of hybrid candidates
   reranker:

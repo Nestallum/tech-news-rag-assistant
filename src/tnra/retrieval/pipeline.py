@@ -48,6 +48,7 @@ class HybridConfig(BaseModel):
     dense_top_k: int
     bm25_top_k: int
     rrf_k: int
+    fused_top_k: int
 
 
 class RetrievalConfig(BaseModel):
@@ -121,6 +122,7 @@ class Retriever:
 
         # --- 3. Article-level dedup ---
         deduped = deduplicate_by_article(fused)
+        deduped = deduped[: hybrid.fused_top_k]
 
         # --- 4. Rerank (or truncate if reranker disabled) ---
         if self.reranker is not None:
