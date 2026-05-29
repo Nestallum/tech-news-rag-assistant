@@ -15,6 +15,7 @@ ingestion job.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 
 from omegaconf import DictConfig
@@ -73,7 +74,6 @@ def _collect_articles(
     ever sample the first feed. Each feed contributes at most
     `ceil(max_articles / n_feeds)` entries.
     """
-    import math
 
     user_agent = cfg.fetch.user_agent
     timeout_s = cfg.fetch.timeout_s

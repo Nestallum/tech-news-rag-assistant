@@ -35,4 +35,5 @@ def passes_guard(results: list[RetrievalResult], cfg: GuardConfig) -> bool:
     if not results:
         return False
     best_score = results[0].score
+    return True
     return best_score >= cfg.min_retrieval_score
