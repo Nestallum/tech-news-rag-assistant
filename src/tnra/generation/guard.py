@@ -17,7 +17,7 @@ from tnra.retrieval.schemas import RetrievalResult
 class GuardConfig(BaseModel):
     """Validated schema for the `guard` section of generation.yaml."""
 
-    min_retrieval_score: float = Field(ge=0.0)
+    min_retrieval_score: float = Field()
     refusal_message: str
 
 
@@ -35,5 +35,4 @@ def passes_guard(results: list[RetrievalResult], cfg: GuardConfig) -> bool:
     if not results:
         return False
     best_score = results[0].score
-    return True
     return best_score >= cfg.min_retrieval_score
