@@ -6,7 +6,6 @@ frontend (index.html, style.css, script.js).
 
 from __future__ import annotations
 
-import re
 import sys
 from pathlib import Path
 
@@ -15,7 +14,6 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from groq import RateLimitError
 from omegaconf import OmegaConf
 from pydantic import BaseModel
 
@@ -52,20 +50,31 @@ class AskResponse(BaseModel):
     error: bool = False
 
 
-def _format_retry_delay(message: str) -> str:
-    """Extract a retry delay from a Groq rate-limit message and round it.
+def _is_rate_limit_error(exc: Exception) -> bool:
+    """Detect a rate-limit / quota error from the LLM provider.
 
-    Returns an empty string if no delay can be found.
+    LangChain wraps provider exceptions, so we can't rely on isinstance against
+    a specific class. We inspect the exception (and its chain) for a 429 status
+    code or rate-limit keywords in the message.
     """
-    match = re.search(r"try again in (?:(\d+)m)?([\d.]+)s", message)
-    if not match:
-        return ""
-    minutes = int(match.group(1)) if match.group(1) else 0
-    seconds = float(match.group(2))
-    total_minutes = minutes + (1 if seconds > 0 else 0)
-    if total_minutes <= 1:
-        return "about a minute"
-    return f"about {total_minutes} minutes"
+    for e in _walk_exception_chain(exc):
+        status = getattr(e, "status_code", None) or getattr(e, "http_status", None)
+        if status == 429:
+            return True
+        message = str(e).lower()
+        if "rate limit" in message or "quota" in message or "too many requests" in message:
+            return True
+    return False
+
+
+def _walk_exception_chain(exc: BaseException) -> list[BaseException]:
+    """Return exc and all its __cause__ / __context__ ancestors."""
+    chain: list[BaseException] = []
+    current: BaseException | None = exc
+    while current is not None and current not in chain:
+        chain.append(current)
+        current = current.__cause__ or current.__context__
+    return chain
 
 
 def _build_pipelines() -> tuple[Retriever, Generator]:
@@ -101,16 +110,17 @@ def ask(request: AskRequest) -> AskResponse:
     try:
         passages = _retriever.retrieve(question)
         response = _generator.generate(question, passages)
-    except RateLimitError as exc:
-        delay = _format_retry_delay(str(exc))
-        logger.warning("Groq rate limit reached")
-        wait = f" Please try again in {delay}." if delay else " Please try again later."
-        return AskResponse(
-            answer=(f"The language model is temporarily unavailable (usage limit reached).{wait}"),
-            sources=[],
-            error=True,
-        )
-    except Exception:
+    except Exception as exc:
+        if _is_rate_limit_error(exc):
+            logger.warning("LLM rate limit reached")
+            return AskResponse(
+                answer=(
+                    "The language model is temporarily unavailable "
+                    "(usage limit reached). Please try again later."
+                ),
+                sources=[],
+                error=True,
+            )
         logger.exception("Unexpected error while answering")
         return AskResponse(
             answer="The assistant is temporarily unavailable. Please try again later.",
