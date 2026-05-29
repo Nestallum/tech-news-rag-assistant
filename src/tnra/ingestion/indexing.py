@@ -147,7 +147,7 @@ def index_chunks(
             ids=[c.chunk_id for c in batch_chunks],
             embeddings=batch_embeds.tolist(),  # Chroma expects list[list[float]]
             documents=[c.text for c in batch_chunks],  # raw text, used for BM25 + LLM context
-            metadatas=[c.to_chroma_metadata() for c in batch_chunks],
+            metadatas=[c.to_chroma_metadata() for c in batch_chunks],  # type: ignore
         )
 
         logger.info("Upsert progress: %d/%d", end, total)
