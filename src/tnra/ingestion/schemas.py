@@ -122,19 +122,21 @@ class Chunk(BaseModel):
         """Flatten to a Chroma-compatible metadata dict.
 
         ChromaDB metadata values must be primitives (str, int, float, bool, None).
-        We serialize datetimes to ISO 8601 strings and drop None values.
+        Dates are stored as Unix timestamps (seconds) so that downstream
+        filters can use Chroma's numeric range operators. When the feed
+        didn't provide a publication date, we fall back to `fetched_at` so
+        `published_at` is always present.
         """
-        meta: dict[str, str | int] = {
+        published = self.published_at if self.published_at is not None else self.fetched_at
+        return {
             "article_url": str(self.article_url),
             "article_title": self.article_title,
             "chunk_index": self.chunk_index,
             "source": self.source,
             "feed_name": self.feed_name,
-            "fetched_at": self.fetched_at.isoformat(),
+            "fetched_at": int(self.fetched_at.timestamp()),
+            "published_at": int(published.timestamp()),
         }
-        if self.published_at is not None:
-            meta["published_at"] = self.published_at.isoformat()
-        return meta
 
 
 # -----------------------------------------------------------------------------
@@ -157,3 +159,21 @@ class FeedValidationResult(BaseModel):
     sample_size: int  # how many entries were checked
     avg_content_chars: int  # average plain-text length across sample
     error: str | None = None  # filled when status == "error"
+
+
+# -----------------------------------------------------------------------------
+# Retention policy (used by the indexing stage to purge expired chunks)
+# -----------------------------------------------------------------------------
+
+
+class RetentionConfig(BaseModel):
+    """Configuration for the corpus retention policy.
+
+    The pipeline purges chunks older than `days` before each new indexing
+    pass, so the corpus stays a rolling window of recent tech news rather
+    than growing indefinitely.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    days: int = Field(gt=0, description="Maximum chunk age in days")

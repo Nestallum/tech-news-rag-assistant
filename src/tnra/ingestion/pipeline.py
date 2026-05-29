@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
+from datetime import UTC, datetime, timedelta
 
 from omegaconf import DictConfig
 
@@ -30,7 +31,7 @@ from tnra.ingestion.indexing import (
     get_or_create_collection,
     index_chunks,
 )
-from tnra.ingestion.schemas import FeedEntry, FeedValidationResult, RawArticle
+from tnra.ingestion.schemas import FeedEntry, FeedValidationResult, RawArticle, RetentionConfig
 from tnra.ingestion.scraping import scrape_articles
 from tnra.utils.logger import get_logger
 
@@ -125,6 +126,39 @@ def _collect_articles(
 
 
 # -----------------------------------------------------------------------------
+# Stage 6.5: purge expired chunks (retention policy)
+# -----------------------------------------------------------------------------
+
+
+def _purge_expired_chunks(collection, retention_cfg: RetentionConfig) -> int:
+    """Delete chunks older than the retention window from the collection.
+
+    Filters on `published_at`, which is guaranteed present and stored as a
+    Unix timestamp in the chunk metadata. Returns the number of chunks
+    deleted, for logging.
+    """
+    cutoff = datetime.now(tz=UTC) - timedelta(days=retention_cfg.days)
+    cutoff_ts = int(cutoff.timestamp())
+
+    before = collection.count()
+    collection.delete(where={"published_at": {"$lt": cutoff_ts}})
+    after = collection.count()
+    deleted = before - after
+
+    if deleted > 0:
+        logger.info(
+            "Retention: purged %d chunks older than %d days (cutoff=%s)",
+            deleted,
+            retention_cfg.days,
+            cutoff.isoformat(),
+        )
+    else:
+        logger.info("Retention: no chunks older than %d days to purge", retention_cfg.days)
+
+    return deleted
+
+
+# -----------------------------------------------------------------------------
 # Public: full ingestion
 # -----------------------------------------------------------------------------
 
@@ -171,6 +205,11 @@ def run_ingestion(cfg: DictConfig, *, max_articles: int | None = None) -> Ingest
     index_cfg = IndexConfig(**cfg.index)
     client = get_chroma_client()
     collection = get_or_create_collection(client, index_cfg)
+
+    # Apply the retention policy before adding new chunks.
+    retention_cfg = RetentionConfig(**cfg.retention)
+    _purge_expired_chunks(collection, retention_cfg)
+
     index_chunks(chunks, embeddings, collection)
 
     report.chunks_indexed = len(chunks)

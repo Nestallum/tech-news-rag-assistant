@@ -56,3 +56,6 @@ index:
   backend: chromadb
   collection_name: tech_news
   distance: cosine                     # consistent with normalize=true above
+
+retention:
+  days: 60                             # purge chunks older than this many days before each ingestion

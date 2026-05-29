@@ -81,7 +81,7 @@ class DenseRetriever:
                     source=str(meta["source"]),
                     feed_name=str(meta["feed_name"]),
                     chunk_index=int(meta["chunk_index"]),  # type: ignore
-                    published_at=meta.get("published_at"),  # may be absent # type: ignore
+                    published_at=int(meta["published_at"]),  # type: ignore
                 )
             )
 

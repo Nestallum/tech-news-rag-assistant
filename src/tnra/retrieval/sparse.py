@@ -141,7 +141,7 @@ class SparseRetriever:
                     source=str(meta["source"]),
                     feed_name=str(meta["feed_name"]),
                     chunk_index=int(meta["chunk_index"]),
-                    published_at=meta.get("published_at"),
+                    published_at=int(meta["published_at"]),
                 )
             )
 

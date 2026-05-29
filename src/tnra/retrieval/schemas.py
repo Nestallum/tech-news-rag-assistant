@@ -36,4 +36,4 @@ class RetrievalResult(BaseModel):
     source: str = Field(min_length=1)
     feed_name: str = Field(min_length=1)
     chunk_index: int = Field(ge=0)
-    published_at: str | None = None  # ISO 8601 string, or None if feed omitted it
+    published_at: int  # Unix timestamp (seconds)
