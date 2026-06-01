@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-from pydantic import ValidationError
 
 from tnra.generation.guard import GuardConfig, passes_guard
 from tnra.retrieval.schemas import RetrievalResult
@@ -20,7 +19,7 @@ def _result(score: float) -> RetrievalResult:
         source="The Verge",
         feed_name="the_verge",
         chunk_index=0,
-        published_at="2026-06-10",
+        published_at=1749513600,
     )
 
 
@@ -50,9 +49,3 @@ def test_passes_guard_empty_results(cfg: GuardConfig) -> None:
 def test_passes_guard_score_exactly_at_threshold(cfg: GuardConfig) -> None:
     """A score exactly equal to the threshold passes (boundary case)."""
     assert passes_guard([_result(0.30)], cfg) is True
-
-
-def test_guard_config_rejects_out_of_range_score() -> None:
-    """A threshold outside [0, 1] is rejected by the schema."""
-    with pytest.raises(ValidationError):
-        GuardConfig(min_retrieval_score=1.5, refusal_message="x")

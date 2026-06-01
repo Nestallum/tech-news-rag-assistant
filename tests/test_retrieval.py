@@ -41,7 +41,7 @@ def _result(chunk_id: str, article_url: str, score: float) -> RetrievalResult:
         source="The Verge",
         feed_name="the_verge",
         chunk_index=0,
-        published_at="2026-06-10",
+        published_at=1749513600,
     )
 
 
@@ -95,7 +95,7 @@ def _ranked(chunk_id: str) -> RetrievalResult:
         source="The Verge",
         feed_name="the_verge",
         chunk_index=0,
-        published_at="2026-06-10",
+        published_at=1749513600,
     )
 
 

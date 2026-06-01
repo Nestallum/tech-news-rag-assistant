@@ -21,7 +21,7 @@ def results() -> list[RetrievalResult]:
             source="The Verge",
             feed_name="the_verge",
             chunk_index=0,
-            published_at="2026-06-10",
+            published_at=1749513600,
         )
         for i in (1, 2, 3)
     ]
