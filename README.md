@@ -38,7 +38,7 @@ The system is a four-stage pipeline:
 ![Architecture diagram](assets/figures/architecture.png)
 
 1. **Ingestion** — tech news articles are scraped from RSS feeds, cleaned,
-   split into chunks, embedded with BGE-large, and indexed in ChromaDB.
+   split into chunks, embedded with BGE-large, and indexed in Qdrant Cloud.
 2. **Retrieval** — for a question, dense and BM25 searches run in parallel;
    their results are fused with RRF, deduplicated at the article level, and
    reranked by a cross-encoder to keep the most relevant passages.
@@ -75,7 +75,7 @@ ground truth: it reflects a model's assessment and carries some variability._
 - **Language:** Python 3.14
 - **Orchestration:** LangChain
 - **Embeddings:** BAAI/bge-large-en-v1.5 (Sentence-Transformers)
-- **Vector store:** ChromaDB
+- **Vector store:** Qdrant Cloud
 - **Sparse retrieval:** BM25
 - **Reranker:** cross-encoder (Sentence-Transformers)
 - **LLM:** gpt-oss-120b via Cerebras
@@ -116,10 +116,13 @@ cd tech-news-rag-assistant
 uv sync --extra dev
 ```
 
-Create a `.env` file at the project root with your Groq key:
+Create a `.env` file at the project root with your API keys:
 
 ```
 CEREBRAS_API_KEY=your_key_here
+QDRANT_URL=your_cluster_url
+QDRANT_API_KEY=your_api_key
+
 ```
 
 ### Usage
@@ -150,10 +153,9 @@ uv run python scripts/evaluate.py
   It is not designed for broad, corpus-wide requests like "summarize this
   week's news": summarizing an entire corpus is a different task from
   retrieval-augmented question answering.
-- **Corpus size & freshness** — the current snapshot has 428 chunks from
-  ~100 articles. A planned v2 will add automated daily ingestion (GitHub
-  Actions) and a 30-day retention policy to keep the corpus fresh and grow
-  the volume to ~2000–3000 chunks for more robust retrieval.
+- **Corpus size & freshness** — the corpus is refreshed daily via GitHub Actions
+(automated ingestion), with a 60-day retention window. The current corpus has
+~245 chunks from ~113 articles.
 - **Multilingual support** — the system is English-only; multilingual
   question answering is a possible future extension.
 
