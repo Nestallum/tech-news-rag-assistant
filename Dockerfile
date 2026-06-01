@@ -17,7 +17,6 @@ RUN uv sync --frozen --no-dev
 COPY src/ ./src/
 COPY scripts/ ./scripts/
 COPY configs/ ./configs/
-COPY chroma_db/ ./chroma_db/
 COPY eval/ ./eval/
 COPY frontend/ ./frontend/
 
