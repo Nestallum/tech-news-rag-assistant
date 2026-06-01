@@ -2,7 +2,7 @@
 
 Data flows through four stages, each with its own schema:
 
-    RSS feed entry ──► FeedEntry ──► RawArticle ──► CleanedArticle ──► Chunk(s) ──► ChromaDB
+    RSS feed entry ──► FeedEntry ──► RawArticle ──► CleanedArticle ──► Chunk(s) ──► Qdrant point(s)
                        (parsing)    (HTML scraping)   (cleaning)      (chunking)
 
 Each schema is the contract between two adjacent stages. Downstream modules
@@ -118,20 +118,22 @@ class Chunk(BaseModel):
     published_at: datetime | None = None
     fetched_at: datetime
 
-    def to_chroma_metadata(self) -> dict[str, str | int]:
-        """Flatten to a Chroma-compatible metadata dict.
+    def to_metadata(self) -> dict[str, str | int]:
+        """Flatten to a qdrant-compatible metadata dict.
 
-        ChromaDB metadata values must be primitives (str, int, float, bool, None).
+        Qdrant metadata values must be primitives (str, int, float, bool, None).
         Dates are stored as Unix timestamps (seconds) so that downstream
-        filters can use Chroma's numeric range operators. When the feed
+        filters can use Qdrant's numeric range operators. When the feed
         didn't provide a publication date, we fall back to `fetched_at` so
         `published_at` is always present.
         """
         published = self.published_at if self.published_at is not None else self.fetched_at
         return {
+            "text": self.text,
             "article_url": str(self.article_url),
             "article_title": self.article_title,
             "chunk_index": self.chunk_index,
+            "chunk_id": self.chunk_id,
             "source": self.source,
             "feed_name": self.feed_name,
             "fetched_at": int(self.fetched_at.timestamp()),

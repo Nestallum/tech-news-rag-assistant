@@ -5,7 +5,7 @@ Wires together the ingestion stages built in the sibling modules:
     feeds ──► scraping ──► cleaning ──► chunking ──► embedding ──► indexing
 
 Two public entry points:
-    - run_ingestion()  : full pipeline, RSS feeds → ChromaDB index
+    - run_ingestion()  : full pipeline, RSS feeds → Qdrant collection
     - validate_feeds() : dry-run that only checks scrape success per feed
 
 Both are called by `scripts/ingest.py`. Keeping the logic here (rather than
@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 
 from omegaconf import DictConfig
+from qdrant_client import QdrantClient
 
 from tnra.ingestion.chunking import ChunkingConfig, chunk_articles
 from tnra.ingestion.cleaning import clean_and_deduplicate
@@ -27,8 +28,8 @@ from tnra.ingestion.embedding import Embedder, EmbeddingConfig
 from tnra.ingestion.feeds import fetch_feed
 from tnra.ingestion.indexing import (
     IndexConfig,
-    get_chroma_client,
-    get_or_create_collection,
+    ensure_collection,
+    get_qdrant_client,
     index_chunks,
 )
 from tnra.ingestion.schemas import FeedEntry, FeedValidationResult, RawArticle, RetentionConfig
@@ -52,7 +53,6 @@ class IngestionReport:
     articles_scraped: int = 0
     articles_after_dedup: int = 0
     chunks_indexed: int = 0
-    collection_total: int = 0
     per_feed_entries: dict[str, int] = field(default_factory=dict)
 
 
@@ -130,32 +130,24 @@ def _collect_articles(
 # -----------------------------------------------------------------------------
 
 
-def _purge_expired_chunks(collection, retention_cfg: RetentionConfig) -> int:
-    """Delete chunks older than the retention window from the collection.
+def _purge_expired_chunks(
+    client: QdrantClient, collection_name: str, retention_cfg: RetentionConfig
+) -> int:
+    """Delete chunks older than the retention window from Qdrant."""
+    from qdrant_client.models import FieldCondition, Filter, Range
 
-    Filters on `published_at`, which is guaranteed present and stored as a
-    Unix timestamp in the chunk metadata. Returns the number of chunks
-    deleted, for logging.
-    """
-    cutoff = datetime.now(tz=UTC) - timedelta(days=retention_cfg.days)
-    cutoff_ts = int(cutoff.timestamp())
+    cutoff_ts = int((datetime.now(tz=UTC) - timedelta(days=retention_cfg.days)).timestamp())
 
-    before = collection.count()
-    collection.delete(where={"published_at": {"$lt": cutoff_ts}})
-    after = collection.count()
-    deleted = before - after
-
-    if deleted > 0:
-        logger.info(
-            "Retention: purged %d chunks older than %d days (cutoff=%s)",
-            deleted,
-            retention_cfg.days,
-            cutoff.isoformat(),
-        )
-    else:
-        logger.info("Retention: no chunks older than %d days to purge", retention_cfg.days)
-
-    return deleted
+    client.delete(
+        collection_name=collection_name,
+        points_selector=Filter(
+            must=[FieldCondition(key="published_at", range=Range(lt=cutoff_ts))]
+        ),
+    )
+    logger.info(
+        "Retention: purged chunks older than %d days (cutoff_ts=%d)", retention_cfg.days, cutoff_ts
+    )
+    return 0
 
 
 # -----------------------------------------------------------------------------
@@ -203,17 +195,13 @@ def run_ingestion(cfg: DictConfig, *, max_articles: int | None = None) -> Ingest
 
     # --- Stage 6: index ---
     index_cfg = IndexConfig(**cfg.index)
-    client = get_chroma_client()
-    collection = get_or_create_collection(client, index_cfg)
-
-    # Apply the retention policy before adding new chunks.
+    client = get_qdrant_client()
+    ensure_collection(client, index_cfg)
     retention_cfg = RetentionConfig(**cfg.retention)
-    _purge_expired_chunks(collection, retention_cfg)
-
-    index_chunks(chunks, embeddings, collection)
-
+    _purge_expired_chunks(client, index_cfg.collection_name, retention_cfg)
+    index_chunks(chunks, embeddings, client, index_cfg.collection_name)
     report.chunks_indexed = len(chunks)
-    report.collection_total = collection.count()
+
     return report
 
 

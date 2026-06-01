@@ -1,7 +1,7 @@
 [project]
 name = "tech-news-rag-assistant"
 version = "0.1.0"
-description = "End-to-end RAG assistant on tech news (AI, product launches, funding, big tech). LangChain + ChromaDB + BGE + Groq."
+description = "End-to-end RAG assistant on tech news (AI, product launches, funding, big tech). LangChain + Qdrant Cloud + BGE + Cerebras."
 readme = "README.md"
 requires-python = ">=3.14"
 license = { text = "MIT" }
@@ -10,9 +10,9 @@ keywords = [
     "rag",
     "retrieval-augmented-generation",
     "langchain",
-    "chromadb",
+    "qdrant",
     "llm",
-    "groq",
+    "cerebras",
     "tech-news",
     "fastapi",
     "huggingface-spaces",
@@ -34,12 +34,11 @@ classifiers = [
 dependencies = [
     # --- Orchestration ---
     "langchain>=0.3",
-    "langchain-community>=0.3",         # community integrations (Chroma, BM25, etc.)
     "langchain-huggingface>=0.1",       # HF embeddings wrapper
-    "langchain-groq>=0.2",              # Groq LLM wrapper
     "langchain-text-splitters>=0.3",    # RecursiveCharacterTextSplitter and friends
     # --- Vector store ---
-    "chromadb>=0.5",
+    "qdrant-client>=1.9",               # Qdrant Cloud SDK
+    "langchain-qdrant>=0.2",            # LangChain ↔ Qdrant integration
     # --- Embeddings + reranker ---
     "sentence-transformers>=3.0",       # BGE-large-en-v1.5 + cross-encoder reranker
     "torch>=2.4",                       # CPU wheel is fine for embeddings on most laptops
@@ -51,7 +50,6 @@ dependencies = [
     "beautifulsoup4>=4.12",             # HTML cleanup of feed entries
     "lxml>=5.2",                        # fast XML parser for feedparser/bs4
     "tenacity>=9.0",                    # retry with exponential backoff for network calls
-    # --- Demo ---
     # --- Config & utilities ---
     "omegaconf>=2.3",
     "pydantic>=2.8",                    # typed config validation + RAG response schemas
@@ -68,14 +66,11 @@ dependencies = [
 # -----------------------------------------------------------------------------
 # Optional dependencies
 # -----------------------------------------------------------------------------
-# `local-llm`: only needed if you want to run the local Qwen fallback.
-# Keeps the default install lightweight for users who just use Groq.
 [project.optional-dependencies]
 local-llm = [
     "llama-cpp-python>=0.3",            # GGUF quantized inference on consumer GPUs
 ]
 
-# Dev dependencies: linting, tests, dev experience.
 dev = [
     "ruff>=0.7",
     "pytest>=8.0",
@@ -142,16 +137,10 @@ markers = [
     "integration: end-to-end tests across modules",
 ]
 asyncio_mode = "auto"
-filterwarnings = [
-    "ignore::DeprecationWarning:chromadb.*",
-]
 
 # -----------------------------------------------------------------------------
 # PyTorch CUDA wheels (Windows / Linux)
 # -----------------------------------------------------------------------------
-# CUDA 13.0 wheels — matches the setup used on existing DL projects in this
-# environment (driver 591.86 + CUDA 13.1 runtime). Falls back to CPU wheels on
-# macOS automatically.
 [tool.uv.sources]
 torch = [
     { index = "pytorch-cu130", marker = "sys_platform == 'linux' or sys_platform == 'win32'" },

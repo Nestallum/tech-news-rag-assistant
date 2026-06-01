@@ -82,3 +82,4 @@ htmlcov/
 *.tmp
 gradio_cached_examples/
 flagged/                            # Gradio default flagged samples directory
+chroma_db/

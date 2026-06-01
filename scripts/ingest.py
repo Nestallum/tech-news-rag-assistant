@@ -1,6 +1,6 @@
 """Ingestion entry point.
 
-Builds (or refreshes) the ChromaDB index from the configured RSS feeds.
+Builds (or refreshes) the Qdrant index from the configured RSS feeds.
 
 Usage:
     uv run python scripts/ingest.py
@@ -33,7 +33,7 @@ from tnra.utils.paths import LOGS_DIR
 
 def parse_args() -> argparse.Namespace:
     """Parse command-line arguments."""
-    parser = argparse.ArgumentParser(description="Ingest RSS feeds into the ChromaDB vector index.")
+    parser = argparse.ArgumentParser(description="Ingest RSS feeds into the Qdrant vector index.")
     parser.add_argument(
         "--config",
         type=str,
@@ -113,7 +113,6 @@ def main() -> int:
     logger.info("  Articles scraped    : %d", report.articles_scraped)
     logger.info("  After deduplication : %d", report.articles_after_dedup)
     logger.info("  Chunks indexed      : %d", report.chunks_indexed)
-    logger.info("  Collection total    : %d", report.collection_total)
     for feed_name, count in report.per_feed_entries.items():
         logger.info("    - %-18s %d entries", feed_name, count)
 

@@ -49,13 +49,12 @@ embeddings:
   model: BAAI/bge-large-en-v1.5
   device: auto                         # auto-detect cuda → mps → cpu
   batch_size: 32
-  normalize: true                      # L2-normalize for cosine similarity in Chroma
+  normalize: true                      # L2-normalize for cosine similarity in Qdrant
   query_prefix: ""                     # BGE-v1.5 doesn't require query prefix (older v1.0 did)
 
 index:
-  backend: chromadb
+  backend: qdrant
   collection_name: tech_news
-  distance: cosine                     # consistent with normalize=true above
 
 retention:
   days: 60                             # purge chunks older than this many days before each ingestion

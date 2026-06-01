@@ -11,7 +11,7 @@ config and loaded identically on both sides.
 
 from __future__ import annotations
 
-from chromadb.api.models.Collection import Collection
+from qdrant_client import QdrantClient
 
 from tnra.ingestion.embedding import Embedder
 from tnra.retrieval.schemas import RetrievalResult
@@ -26,14 +26,15 @@ logger = get_logger(__name__)
 
 
 class DenseRetriever:
-    """Semantic retriever backed by a ChromaDB collection.
+    """Semantic retriever backed by a Qdrant collection.
 
-    Holds a reference to a shared Embedder and a Chroma collection. Both are
+    Holds a reference to a shared Embedder and a Qdrant collection. Both are
     constructed once (Embedder loading is expensive) and reused across queries.
     """
 
-    def __init__(self, collection: Collection, embedder: Embedder) -> None:
-        self.collection = collection
+    def __init__(self, client: QdrantClient, collection_name: str, embedder: Embedder) -> None:
+        self.client = client
+        self.collection_name = collection_name
         self.embedder = embedder
 
     def retrieve(self, query: str, top_k: int) -> list[RetrievalResult]:
@@ -48,40 +49,31 @@ class DenseRetriever:
             `1 - cosine_distance`, so it lives in roughly [-1, 1] with higher
             meaning more similar (typically 0.5-0.8 for good matches).
         """
-        # 1. Embed the query (same BGE model as ingestion).
         query_vector = self.embedder.embed_query(query)
 
-        # 2. Ask Chroma for the nearest chunks.
-        #    We request documents + metadatas + distances so we can build
-        #    self-contained RetrievalResult objects without a second lookup.
-        raw = self.collection.query(
-            query_embeddings=[query_vector.tolist()],
-            n_results=top_k,
-            include=["documents", "metadatas", "distances"],
-        )
-
-        # 3. Chroma returns parallel lists wrapped in an outer list (one entry
-        #    per query). We sent a single query, so we take index [0].
-        ids = raw["ids"][0]
-        documents = raw["documents"][0]  # type: ignore
-        metadatas = raw["metadatas"][0]  # type: ignore
-        distances = raw["distances"][0]  # type: ignore
+        hits = self.client.query_points(
+            collection_name=self.collection_name,
+            query=query_vector.tolist(),
+            using="dense",
+            limit=top_k,
+            with_payload=True,
+        ).points
 
         results: list[RetrievalResult] = []
-        for chunk_id, text, meta, distance in zip(
-            ids, documents, metadatas, distances, strict=False
-        ):
+        for hit in hits:
+            assert hit.payload is not None
+            p = hit.payload
             results.append(
                 RetrievalResult(
-                    chunk_id=chunk_id,
-                    text=text,
-                    score=1.0 - distance,  # distance → similarity (higher = better)
-                    article_url=str(meta["article_url"]),
-                    article_title=str(meta["article_title"]),
-                    source=str(meta["source"]),
-                    feed_name=str(meta["feed_name"]),
-                    chunk_index=int(meta["chunk_index"]),  # type: ignore
-                    published_at=int(meta["published_at"]),  # type: ignore
+                    chunk_id=str(p["chunk_id"]),
+                    text=str(p["text"]),
+                    score=hit.score,
+                    article_url=str(p["article_url"]),
+                    article_title=str(p["article_title"]),
+                    source=str(p["source"]),
+                    feed_name=str(p["feed_name"]),
+                    chunk_index=int(p["chunk_index"]),
+                    published_at=int(p["published_at"]),
                 )
             )
 

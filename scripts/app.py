@@ -6,16 +6,17 @@ frontend (index.html, style.css, script.js).
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
-import chromadb
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from omegaconf import OmegaConf
 from pydantic import BaseModel
+from qdrant_client import QdrantClient
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
@@ -79,15 +80,20 @@ def _walk_exception_chain(exc: BaseException) -> list[BaseException]:
 
 def _build_pipelines() -> tuple[Retriever, Generator]:
     """Build the retriever and generator once, at startup."""
-    base_cfg = OmegaConf.load("configs/base.yaml")
     ingestion_cfg = OmegaConf.load("configs/ingestion.yaml")
     retrieval_cfg = OmegaConf.load("configs/retrieval.yaml")
     generation_cfg = OmegaConf.load("configs/generation.yaml")
 
-    client = chromadb.PersistentClient(path=base_cfg.paths.chroma_dir)
-    collection = client.get_collection(ingestion_cfg.index.collection_name)  # type: ignore
-
-    retriever = build_retriever(collection, retrieval_cfg.retrieval, ingestion_cfg.embeddings)
+    client = QdrantClient(
+        url=os.environ["QDRANT_URL"],
+        api_key=os.environ["QDRANT_API_KEY"],
+    )
+    retriever = build_retriever(
+        client,
+        ingestion_cfg.index.collection_name,  # type: ignore
+        retrieval_cfg.retrieval,
+        ingestion_cfg.embeddings,
+    )
     generator = build_generator(generation_cfg)  # type: ignore
     return retriever, generator
 

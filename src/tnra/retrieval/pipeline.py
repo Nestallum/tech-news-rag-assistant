@@ -3,7 +3,7 @@
 Wires the five retrieval components into a single entry point:
 
     query
-      ├─► dense retrieval  (ChromaDB, semantic) ──┐
+      ├─► dense retrieval  (Qdrant, semantic) ──┐
       ├─► sparse retrieval (BM25, keyword)     ──┤
       │                                          ▼
       │                                   RRF fusion
@@ -21,9 +21,9 @@ instance is meant to live for the whole app lifetime.
 
 from __future__ import annotations
 
-from chromadb.api.models.Collection import Collection
 from omegaconf import DictConfig
 from pydantic import BaseModel
+from qdrant_client import QdrantClient
 
 from tnra.ingestion.embedding import Embedder, EmbeddingConfig
 from tnra.retrieval.dedup import deduplicate_by_article
@@ -73,17 +73,20 @@ class Retriever:
 
     def __init__(
         self,
-        collection: Collection,
+        client: QdrantClient,
+        collection_name: str,
         embedder: Embedder,
         retrieval_cfg: RetrievalConfig,
     ) -> None:
         self.cfg = retrieval_cfg
 
-        # Dense: semantic search over ChromaDB, using the shared embedder.
-        self.dense = DenseRetriever(collection=collection, embedder=embedder)
+        # Dense: semantic search over Qdrant, using the shared embedder.
+        self.dense = DenseRetriever(
+            client=client, collection_name=collection_name, embedder=embedder
+        )
 
         # Sparse: BM25 index built from the texts stored in the same collection.
-        self.sparse = SparseRetriever.from_collection(collection)
+        self.sparse = SparseRetriever.from_qdrant(client=client, collection_name=collection_name)
 
         # Reranker: built only if enabled, to avoid loading a 2.3 GB model for nothing.
         self.reranker: Reranker | None = None
@@ -140,14 +143,16 @@ class Retriever:
 
 
 def build_retriever(
-    collection: Collection,
+    client: QdrantClient,
+    collection_name: str,
     retrieval_cfg: DictConfig,
     embeddings_cfg: DictConfig,
 ) -> Retriever:
     """Construct a Retriever from raw OmegaConf config sections.
 
     Args:
-        collection: An open ChromaDB collection (the indexed corpus).
+        client: An open QdrantClient instance.
+        collection_name: The name of the collection to use.
         retrieval_cfg: The `retrieval` block of configs/retrieval.yaml.
         embeddings_cfg: The `embeddings` block of configs/ingestion.yaml.
             Required because the query MUST be embedded with the exact same
@@ -164,7 +169,8 @@ def build_retriever(
     embedder = Embedder(validated_embeddings)
 
     return Retriever(
-        collection=collection,
+        client=client,
+        collection_name=collection_name,
         embedder=embedder,
         retrieval_cfg=validated_retrieval,
     )

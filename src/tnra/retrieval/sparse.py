@@ -4,9 +4,9 @@ Complements dense retrieval: where dense search captures meaning but can dilute
 rare exact terms, BM25 matches literal words and never misses an exact token
 (product names, version numbers, acronyms).
 
-Unlike ChromaDB, BM25 has no persistent store. The index is an in-memory
+Unlike Qdrant, BM25 has no persistent store. The index is an in-memory
 structure built from the corpus texts. We rebuild it at startup by reading all
-documents from the Chroma collection — fast for our corpus size (a few ms for
+documents from the Qdrant collection — fast for our corpus size (a few ms for
 hundreds of chunks). For much larger corpora, the index would be persisted or
 delegated to a dedicated engine (OpenSearch/Qdrant) — noted in the README.
 
@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import re
 
-from chromadb.api.models.Collection import Collection
+from qdrant_client import QdrantClient
 from rank_bm25 import BM25Okapi
 
 from tnra.retrieval.schemas import RetrievalResult
@@ -56,7 +56,7 @@ def tokenize(text: str) -> list[str]:
 
 
 class SparseRetriever:
-    """BM25 keyword retriever built from the chunks stored in ChromaDB.
+    """BM25 keyword retriever built from the chunks stored in Qdrant.
 
     The BM25 index is built once at construction time. If the underlying corpus
     changes (after a fresh ingestion), build a new SparseRetriever.
@@ -73,9 +73,9 @@ class SparseRetriever:
         Args:
             chunk_ids: Chunk IDs, parallel to `documents` and `metadatas`.
             documents: Raw chunk texts.
-            metadatas: Chroma metadata dicts (one per chunk).
+            metadatas: Qdrant payload dicts (one per chunk).
 
-        Use `from_collection()` instead of calling this directly in most cases.
+        Use `from_qdrant()` instead of calling this directly in most cases.
         """
         if not (len(chunk_ids) == len(documents) == len(metadatas)):
             raise ValueError("chunk_ids, documents, and metadatas must have equal length")
@@ -93,19 +93,28 @@ class SparseRetriever:
         logger.info("BM25 index built over %d chunks", len(documents))
 
     @classmethod
-    def from_collection(cls, collection: Collection) -> SparseRetriever:
-        """Build a SparseRetriever by reading all chunks from a Chroma collection.
+    def from_qdrant(cls, client: QdrantClient, collection_name: str) -> SparseRetriever:
+        """Build a SparseRetriever by scrolling all chunks from Qdrant."""
+        chunk_ids, documents, metadatas = [], [], []
+        offset = None
 
-        `collection.get()` with no filter returns the entire collection. For our
-        corpus size this is cheap; for very large corpora this is where you'd
-        switch to a persisted BM25 index instead.
-        """
-        raw = collection.get(include=["documents", "metadatas"])
-        return cls(
-            chunk_ids=raw["ids"],
-            documents=raw["documents"],  # type: ignore
-            metadatas=raw["metadatas"],  # type: ignore
-        )
+        while True:
+            results, offset = client.scroll(
+                collection_name=collection_name,
+                limit=256,
+                offset=offset,
+                with_payload=True,
+                with_vectors=False,
+            )
+            for point in results:
+                assert point.payload is not None
+                chunk_ids.append(str(point.id))
+                documents.append(str(point.payload["text"]))
+                metadatas.append(point.payload)
+            if offset is None:
+                break
+
+        return cls(chunk_ids=chunk_ids, documents=documents, metadatas=metadatas)
 
     def retrieve(self, query: str, top_k: int) -> list[RetrievalResult]:
         """Retrieve the top_k chunks with the highest BM25 score for a query.
@@ -133,7 +142,7 @@ class SparseRetriever:
             meta = self.metadatas[idx]
             results.append(
                 RetrievalResult(
-                    chunk_id=self.chunk_ids[idx],
+                    chunk_id=str(meta["chunk_id"]),
                     text=self.documents[idx],
                     score=float(scores[idx]),
                     article_url=str(meta["article_url"]),
