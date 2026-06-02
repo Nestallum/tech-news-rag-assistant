@@ -1,86 +1,210 @@
 /**
  * Tech News RAG Assistant — frontend script
  *
- * Wires the input box to the FastAPI /ask endpoint and renders the response
- * (answer + source cards) into the conversation thread. The first submission
- * also flips the layout from the home screen to the chat view via the
- * `has-content` class on the app container, with a brief slide animation
- * on the input box (FLIP technique).
+ * Drives a multi-turn conversation against the FastAPI /ask endpoint.
+ *
+ * Home screen: the composer sits centred between the title and the
+ * suggestions. On the first submission it slides down to the dock (FLIP
+ * technique) and the thread takes over. Subsequent answers append to the
+ * thread, which scrolls behind the docked composer; its dissolve mask and
+ * bottom padding are sized from --composer-h, kept in sync with the dock's
+ * real height so the effect holds as the textarea wraps.
+ *
+ * Clicking the brand resets everything back to the home screen.
  */
 
 document.addEventListener("DOMContentLoaded", () => {
 
-    // ---------- Constants ----------
+    // ---------- Configuration ----------
 
     const ASK_ENDPOINT = "/ask";
-    const SCROLL_SETTLE_MS = 50;
-    const HOME_TO_CHAT_TRANSITION_MS = 300;
-    const GENERIC_ERROR_MESSAGE =
+    const SCROLL_SETTLE_MS = 60;
+    const SLIDE_DURATION_MS = 300;
+    const GENERIC_ERROR =
         "The assistant is temporarily unavailable. Please try again later.";
 
     // ---------- DOM references ----------
 
-    const appContainer       = document.getElementById("appContainer");
-    const chatArea           = document.getElementById("chatArea");
-    const userInput          = document.getElementById("userInput");
-    const sendBtn            = document.getElementById("sendBtn");
-    const userQuestionText   = document.getElementById("userQuestionText");
-    const assistantAnswerText = document.getElementById("assistantAnswerText");
-    const sourcesContainer   = document.getElementById("sourcesContainer");
-    const sourcesList        = document.getElementById("sourcesList");
-    const inputContainerBox  = document.querySelector(".input-container-box");
-    const inputPositioner    = document.querySelector(".input-box-positioner");
+    const app                = document.getElementById("app");
+    const brand              = document.getElementById("brand");
+    const thread             = document.getElementById("thread");
+    const threadInner        = document.getElementById("threadInner");
+    const dock               = document.getElementById("dock");
+    const composerPositioner = document.getElementById("composerPositioner");
+    const composer           = document.getElementById("composer");
+    const suggestions        = document.getElementById("suggestions");
+    const input              = document.getElementById("input");
+    const sendButton         = document.getElementById("send");
+    const scrollbar          = document.getElementById("scrollbar");
+    const scrollbarThumb     = document.getElementById("scrollbarThumb");
+
+    let isAwaitingResponse = false;
+
+    // ---------- Composer height tracking ----------
+
+    const syncComposerHeight = () => {
+        if (app.dataset.state !== "chat") return;
+        const height = Math.round(dock.getBoundingClientRect().height);
+        app.style.setProperty("--composer-h", `${height}px`);
+        updateScrollbar();
+    };
+
+    new ResizeObserver(syncComposerHeight).observe(dock);
+
+    // ---------- Overlay scrollbar ----------
+
+    const MIN_THUMB_HEIGHT = 32;
+
+    // Geometry is measured only when it can actually change (resize / content
+    // growth). During scroll and drag we read just scrollTop — a cheap read
+    // that triggers no layout — so the thumb never lags behind.
+    let geom = { travel: 0, scrollable: 0 };
+    let thumbFrame = null;
+
+    /** Recompute thumb size and visibility; call on resize and after renders. */
+    function updateScrollbar() {
+        const { scrollHeight, clientHeight } = thread;
+        const scrollable = scrollHeight - clientHeight;
+        const track = scrollbar.clientHeight;
+
+        if (scrollable <= 1 || track <= 0) {
+            scrollbar.classList.remove("is-scrollable");
+            geom = { travel: 0, scrollable: 0 };
+            return;
+        }
+
+        scrollbar.classList.add("is-scrollable");
+        const thumbHeight = Math.max(
+            MIN_THUMB_HEIGHT,
+            (clientHeight / scrollHeight) * track
+        );
+        geom = { travel: track - thumbHeight, scrollable };
+        scrollbarThumb.style.height = `${thumbHeight}px`;
+        renderThumb();
+    }
+
+    /** Position the thumb from the current scrollTop (no layout reads). */
+    function renderThumb() {
+        if (geom.scrollable <= 0) return;
+        const top = (thread.scrollTop / geom.scrollable) * geom.travel;
+        scrollbarThumb.style.transform = `translateY(${top}px)`;
+    }
+
+    // Coalesce scroll updates into a single frame.
+    thread.addEventListener(
+        "scroll",
+        () => {
+            if (thumbFrame) return;
+            thumbFrame = requestAnimationFrame(() => {
+                thumbFrame = null;
+                renderThumb();
+            });
+        },
+        { passive: true }
+    );
+
+    new ResizeObserver(updateScrollbar).observe(thread);
+    new ResizeObserver(updateScrollbar).observe(threadInner);
+
+    // Drag the thumb to scroll. Smooth scrolling is disabled for the duration
+    // so scrollTop tracks the pointer instantly, then restored on release.
+    let isDragging = false;
+    let dragStartY = 0;
+    let dragStartScroll = 0;
+
+    scrollbarThumb.addEventListener("pointerdown", (event) => {
+        event.preventDefault();
+        isDragging = true;
+        dragStartY = event.clientY;
+        dragStartScroll = thread.scrollTop;
+        scrollbarThumb.classList.add("is-dragging");
+        scrollbarThumb.setPointerCapture(event.pointerId);
+        thread.style.scrollBehavior = "auto";
+    });
+
+    scrollbarThumb.addEventListener("pointermove", (event) => {
+        if (!isDragging) return;
+        const ratio = geom.travel > 0 ? (event.clientY - dragStartY) / geom.travel : 0;
+        thread.scrollTop = dragStartScroll + ratio * geom.scrollable;
+        renderThumb();
+    });
+
+    scrollbarThumb.addEventListener("pointerup", (event) => {
+        isDragging = false;
+        scrollbarThumb.classList.remove("is-dragging");
+        scrollbarThumb.releasePointerCapture(event.pointerId);
+        thread.style.scrollBehavior = "";
+    });
 
     // ---------- Event bindings ----------
 
-    // Clicking anywhere on the input shell focuses the textarea.
-    inputContainerBox.addEventListener("click", () => userInput.focus());
+    composer.addEventListener("click", () => input.focus());
 
-    // Auto-resize the textarea and toggle the send button's active state.
-    userInput.addEventListener("input", () => {
-        toggleSendButton(userInput.value.trim().length > 0);
-        autoResizeTextarea();
+    input.addEventListener("input", () => {
+        autoResize();
+        refreshSendButton();
     });
 
-    // Enter submits, Shift+Enter inserts a newline.
-    userInput.addEventListener("keydown", (event) => {
+    input.addEventListener("keydown", (event) => {
         if (event.key === "Enter" && !event.shiftKey) {
             event.preventDefault();
-            if (userInput.value.trim().length > 0) {
-                submitQuestion();
-            }
+            submit();
         }
     });
 
-    sendBtn.addEventListener("click", () => {
-        if (userInput.value.trim().length > 0) {
-            submitQuestion();
-        }
+    sendButton.addEventListener("click", submit);
+
+    suggestions.addEventListener("click", (event) => {
+        const chip = event.target.closest(".chip");
+        if (!chip) return;
+        input.value = chip.textContent;
+        autoResize();
+        refreshSendButton();
+        submit();
     });
 
-    // ---------- UI helpers ----------
+    brand.addEventListener("click", resetConversation);
 
-    function toggleSendButton(isActive) {
-        sendBtn.classList.toggle("is-active", isActive);
+    // ---------- Composer helpers ----------
+
+    function hasText() {
+        return input.value.trim().length > 0;
     }
 
-    function autoResizeTextarea() {
-        userInput.style.height = "auto";
-        userInput.style.height = `${userInput.scrollHeight}px`;
+    /** Toggle the send button's active state — the original behaviour. */
+    function refreshSendButton() {
+        sendButton.classList.toggle("is-active", hasText());
     }
 
-    function resetTextarea() {
-        userInput.value = "";
-        userInput.style.height = "auto";
-        toggleSendButton(false);
+    function autoResize() {
+        input.style.height = "auto";
+        input.style.height = `${input.scrollHeight}px`;
     }
 
-    function scrollChatToBottom() {
-        chatArea.scrollTop = chatArea.scrollHeight;
+    function clearComposer() {
+        input.value = "";
+        input.style.height = "auto";
+        refreshSendButton();
     }
 
-    function wait(ms) {
-        return new Promise((resolve) => setTimeout(resolve, ms));
+    // ---------- Scrolling ----------
+
+    // Distance from the thread's top at which a freshly sent question should
+    // settle — just below the (overlay) top bar, matching the thread's own
+    // top padding (header height + breathing room).
+    const QUESTION_TOP_OFFSET = 72;
+
+    /**
+     * Bring a message to the top of the viewport so the answer reads from
+     * just beneath it. If there isn't enough content below to push it all the
+     * way up, the browser clamps the scroll — exactly like the big chatbots.
+     */
+    function scrollQuestionToTop(messageEl) {
+        const delta =
+            messageEl.getBoundingClientRect().top -
+            thread.getBoundingClientRect().top -
+            QUESTION_TOP_OFFSET;
+        thread.scrollTo({ top: thread.scrollTop + delta, behavior: "smooth" });
     }
 
     function nextFrame() {
@@ -89,43 +213,37 @@ document.addEventListener("DOMContentLoaded", () => {
         );
     }
 
-    function renderLoadingState() {
-        assistantAnswerText.innerHTML = `
-            <div class="status-loading-wrapper">
-                <div class="status-message">Seeking sources...</div>
-                <div class="loading-skeleton">
-                    <div class="skeleton-line"></div>
-                    <div class="skeleton-line"></div>
-                    <div class="skeleton-line"></div>
-                </div>
-            </div>
-        `;
-    }
-
-    function renderError(message) {
-        assistantAnswerText.classList.add("error-text");
-        assistantAnswerText.textContent = message;
-    }
-
-    function renderAnswer(answer) {
-        assistantAnswerText.classList.remove("error-text");
-        assistantAnswerText.innerHTML = "";
-
-        const paragraphs = answer.split(/\n\n+/);
-        for (const paragraph of paragraphs) {
-            const text = paragraph.trim();
-            if (!text) continue;
-
-            const p = document.createElement("p");
-            p.innerHTML = formatInline(escapeHtml(text));
-            assistantAnswerText.appendChild(p);
-        }
+    function wait(ms) {
+        return new Promise((resolve) => setTimeout(resolve, ms));
     }
 
     /**
-     * Escape HTML special characters so untrusted text can be safely
-     * injected via innerHTML. Must be applied BEFORE formatInline,
-     * otherwise the markdown-to-HTML step would be defeated.
+     * Slide the composer from its centred home position down to the dock,
+     * using FLIP: measure first, switch layout, invert with a transform, then
+     * play by clearing it on the next frame.
+     */
+    async function playHomeToChatTransition() {
+        const firstTop = composerPositioner.getBoundingClientRect().top;
+
+        app.dataset.state = "chat";
+        const lastTop = composerPositioner.getBoundingClientRect().top;
+
+        composerPositioner.style.transform = `translateY(${firstTop - lastTop}px)`;
+        void composerPositioner.offsetHeight; // commit the inverted position
+
+        app.classList.add("is-transitioning");
+        await nextFrame();
+        composerPositioner.style.transform = "";
+
+        await wait(SLIDE_DURATION_MS);
+        app.classList.remove("is-transitioning");
+    }
+
+    // ---------- Rendering ----------
+
+    /**
+     * Escape HTML so untrusted text is safe to inject via innerHTML. Must run
+     * before formatInline, otherwise the markdown step would be defeated.
      */
     function escapeHtml(text) {
         return text
@@ -134,27 +252,94 @@ document.addEventListener("DOMContentLoaded", () => {
             .replace(/>/g, "&gt;");
     }
 
-    /**
-     * Convert a minimal markdown subset (**bold** only) into inline HTML.
-     * The LLM prompt restricts formatting to bold for key terms; lists,
-     * headers, and other markdown are intentionally not supported.
-     */
+    /** Convert the supported markdown subset (**bold** only) to inline HTML. */
     function formatInline(text) {
         return text.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
     }
 
-    function renderSources(sources) {
-        sourcesList.innerHTML = "";
+    function appendUserMessage(question) {
+        const wrapper = document.createElement("div");
+        wrapper.className = "message message-user";
 
-        if (!sources || sources.length === 0) {
-            sourcesContainer.classList.add("is-hidden");
+        const bubble = document.createElement("div");
+        bubble.className = "user-bubble";
+        bubble.textContent = question;
+
+        wrapper.appendChild(bubble);
+        threadInner.appendChild(wrapper);
+        return wrapper;
+    }
+
+    /**
+     * Append an assistant turn in its loading state and return the answer
+     * element, so the caller can swap in the response once it arrives.
+     */
+    function appendAssistantMessage() {
+        const wrapper = document.createElement("div");
+        wrapper.className = "message message-assistant";
+
+        const avatar = document.createElement("div");
+        avatar.className = "avatar";
+        avatar.innerHTML =
+            '<span class="material-symbols-rounded">subtitles</span>';
+
+        const answer = document.createElement("div");
+        answer.className = "answer";
+        answer.innerHTML = `
+            <div class="thinking">
+                <div class="thinking-label">Seeking sources&hellip;</div>
+                <div class="skeleton">
+                    <div class="skeleton-line"></div>
+                    <div class="skeleton-line"></div>
+                    <div class="skeleton-line"></div>
+                </div>
+            </div>
+        `;
+
+        wrapper.append(avatar, answer);
+        threadInner.appendChild(wrapper);
+        return answer;
+    }
+
+    function renderAnswer(answerEl, text) {
+        answerEl.classList.remove("is-error");
+
+        // Defensive: an empty (but non-error) payload would otherwise wipe the
+        // skeleton and leave a blank turn. Fall back to a clear message.
+        if (!text || !text.trim()) {
+            renderError(answerEl, GENERIC_ERROR);
             return;
         }
 
-        sources.forEach((source) => {
-            sourcesList.appendChild(buildSourceCard(source));
+        answerEl.innerHTML = "";
+
+        text.split(/\n\n+/).forEach((block) => {
+            const trimmed = block.trim();
+            if (!trimmed) return;
+            const p = document.createElement("p");
+            p.innerHTML = formatInline(escapeHtml(trimmed));
+            answerEl.appendChild(p);
         });
-        sourcesContainer.classList.remove("is-hidden");
+    }
+
+    function renderError(answerEl, message) {
+        answerEl.classList.add("is-error");
+        answerEl.textContent = message;
+    }
+
+    function renderSources(answerEl, sources) {
+        if (!Array.isArray(sources) || sources.length === 0) return;
+
+        const container = document.createElement("div");
+        container.className = "sources";
+        container.innerHTML = '<div class="sources-title">SOURCES</div>';
+
+        const list = document.createElement("div");
+        list.className = "sources-list";
+        sources.forEach((source) => list.appendChild(buildSourceCard(source)));
+
+        container.appendChild(list);
+        answerEl.appendChild(container);
     }
 
     function buildSourceCard(source) {
@@ -163,87 +348,51 @@ document.addEventListener("DOMContentLoaded", () => {
         card.href = source.url;
         card.target = "_blank";
         card.rel = "noopener noreferrer";
-        card.innerHTML = `
-            <div class="source-content">
-                <div class="source-title">${source.title}</div>
-                <div class="source-meta">${source.publication}</div>
-            </div>
-            <div class="source-icon">
-                <span class="material-symbols-rounded">open_in_new</span>
-            </div>
-        `;
+
+        const text = document.createElement("div");
+        text.className = "source-text";
+
+        const title = document.createElement("div");
+        title.className = "source-title";
+        title.textContent = source.title;
+
+        const meta = document.createElement("div");
+        meta.className = "source-meta";
+        meta.textContent = source.publication;
+
+        text.append(title, meta);
+
+        const icon = document.createElement("div");
+        icon.className = "source-icon";
+        icon.innerHTML =
+            '<span class="material-symbols-rounded">open_in_new</span>';
+
+        card.append(text, icon);
         return card;
     }
 
-    /**
-     * Animates the home → chat transition with a FLIP technique.
-     *
-     *   1. First  — measure the input's current (home) position.
-     *   2. Last   — apply `has-content`: the layout snaps to chat mode and
-     *               the input is now at the bottom of the screen.
-     *   3. Invert — apply an inverse translateY (synchronously) so the
-     *               input visually stays at its home position. Force a
-     *               reflow so the browser commits this as the starting
-     *               point of the upcoming transition.
-     *   4. Play   — enable the CSS transition and clear the transform on
-     *               the next frame. The input glides down to its docked
-     *               position.
-     */
-    async function playHomeToChatTransition() {
-        // First.
-        const firstTop = inputPositioner.getBoundingClientRect().top;
+    // ---------- Conversation flow ----------
 
-        // Last.
-        appContainer.classList.add("has-content");
-        const lastTop = inputPositioner.getBoundingClientRect().top;
-        const deltaY = firstTop - lastTop;
+    async function submit() {
+        if (isAwaitingResponse || !hasText()) return;
 
-        // Invert (synchronous, no transition yet).
-        inputPositioner.style.transform = `translateY(${deltaY}px)`;
+        const question = input.value.trim();
+        const isFirstSubmission = app.dataset.state === "empty";
+        isAwaitingResponse = true;
 
-        // Force a reflow so the browser commits the inverted position
-        // before we enable the transition. Without this, the transform
-        // and its removal can be coalesced into a single paint and the
-        // animation is skipped entirely.
-        void inputPositioner.offsetHeight;
+        // Build the turn while still on the home screen (the thread is hidden,
+        // so these updates only become visible after the slide).
+        const userMessage = appendUserMessage(question);
+        const answerEl = appendAssistantMessage();
+        clearComposer();
+        input.focus();
 
-        // Play.
-        appContainer.classList.add("is-transitioning");
-        await nextFrame();
-        inputPositioner.style.transform = "";
-
-        await wait(HOME_TO_CHAT_TRANSITION_MS);
-
-        appContainer.classList.remove("is-transitioning");
-    }
-
-    // ---------- Request flow ----------
-
-    async function submitQuestion() {
-        const question = userInput.value.trim();
-        if (!question) return;
-
-        const isFirstSubmission = !appContainer.classList.contains("has-content");
-
-        // Prepare the conversation content first. While we are still on the
-        // home screen, the conversation thread is hidden, so these updates
-        // are invisible to the user — they only become visible once the
-        // transition swaps the layout.
-        sourcesContainer.classList.add("is-hidden");
-        sourcesList.innerHTML = "";
-        assistantAnswerText.classList.remove("error-text");
-        userQuestionText.textContent = question;
-        renderLoadingState();
-        resetTextarea();
-
-        // First submission: animate the home → chat transition. The input
-        // box slides from its centered home position down to its docked
-        // position.
         if (isFirstSubmission) {
             await playHomeToChatTransition();
         }
 
-        scrollChatToBottom();
+        syncComposerHeight();
+        scrollQuestionToTop(userMessage);
 
         try {
             const response = await fetch(ASK_ENDPOINT, {
@@ -252,24 +401,44 @@ document.addEventListener("DOMContentLoaded", () => {
                 body: JSON.stringify({ question }),
             });
 
-            if (!response.ok) {
-                throw new Error("Network server error");
-            }
+            if (!response.ok) throw new Error("Server error");
 
             const data = await response.json();
 
             if (data.error) {
-                renderError(data.answer);
+                renderError(answerEl, data.answer || GENERIC_ERROR);
             } else {
-                renderAnswer(data.answer);
-                renderSources(data.sources);
+                renderAnswer(answerEl, data.answer);
+                renderSources(answerEl, data.sources);
             }
         } catch (error) {
-            renderError(GENERIC_ERROR_MESSAGE);
+            renderError(answerEl, GENERIC_ERROR);
             console.error(error);
+        } finally {
+            isAwaitingResponse = false;
+            setTimeout(() => {
+                scrollQuestionToTop(userMessage);
+                updateScrollbar();
+            }, SCROLL_SETTLE_MS);
         }
+    }
 
-        // Settle the scroll position once the answer has rendered.
-        setTimeout(scrollChatToBottom, SCROLL_SETTLE_MS);
+    /** Reset to the home screen — the brand acts as a fresh start, but only
+     *  while a conversation is open. On the home screen it does nothing. */
+    function resetConversation() {
+        if (app.dataset.state !== "chat") return;
+
+        threadInner
+            .querySelectorAll(".message")
+            .forEach((node) => node.remove());
+
+        app.dataset.state = "empty";
+        app.style.removeProperty("--composer-h");
+        composerPositioner.style.transform = "";
+        thread.scrollTop = 0;
+        updateScrollbar();
+
+        clearComposer();
+        input.focus();
     }
 });

@@ -1,19 +1,26 @@
 /* ==========================================================================
    Tech News RAG Assistant — stylesheet
    --------------------------------------------------------------------------
-   Layout is a fixed-height flex column:
+   Layout (single full-viewport-height column on .app, position: relative):
 
-       .app-container  (100dvh, column flex)
-           ├── .app-header        natural height
-           ├── .chat-area         flex: 1, scrolls (chat mode only)
-           ├── .dock              holds the input; grows to fill on home,
-           │                      collapses to natural height in chat mode
-           └── .app-disclaimer-bar  natural height, always visible
+       .topbar      absolute overlay at the top (transparent)
+       .thread      chat only: fills the viewport, scrolls; masked top &
+                    bottom so content dissolves under the bar and the dock
+       .scrollbar   absolute overlay bar, sibling of .thread (outside the
+                    mask) so it stays crisp while content still fades
+       .dock        home: fills the page and centres [title, composer,
+                    suggestions]; chat: absolute, anchored to the bottom
 
-   State is driven by the `has-content` class on .app-container, which is
-   added by script.js after the first question is sent. During the brief
-   home → chat transition, `is-transitioning` is also present and enables
-   the slide animation on the input box.
+   State is driven by the `data-state` attribute on .app:
+     "empty" — home screen; the thread is hidden, the dock fills the page.
+     "chat"  — the thread takes over; the dock is pinned to the bottom with
+               just the composer + disclaimer.
+
+   The thread's bottom padding clears the docked composer, and a
+   linear-gradient mask dissolves content under the top bar and over the
+   upper half of the composer — no hard clip line at either edge. The mask is
+   sized from --composer-h, which JS keeps in sync with the dock's real
+   height (it grows as the textarea wraps).
    ========================================================================== */
 
 
@@ -21,77 +28,110 @@
 
 :root {
     /* Surfaces */
-    --bg-main:           #131314;
-    --bg-surface:        #1e1f20;
-    --bg-input:          #1e1f20;
-    --bg-user-bubble:    #2a2b2d;
-    --bg-avatar:         #202124;
-    --bg-source-hover:   #262729;
-    --bg-button-idle:    #282a2c;
-    --bg-button-hover:   #333538;
-    --bg-button-active:  #3c4043;
+    --bg-main:                #131314;
+    --bg-surface:             #1e1f20;
+    --bg-user-bubble:         #2a2b2d;
+    --bg-avatar:              #202124;
+    --bg-source-hover:        #262729;
+
+    /* Send button (original behaviour) */
+    --bg-button-idle:         #282a2c;
+    --bg-button-hover:        #333538;
+    --bg-button-active:       #3c4043;
     --bg-button-active-hover: #4f5356;
 
     /* Text */
-    --text-primary:      #e3e3e3;
-    --text-secondary:    #b4b4b4;
-    --text-on-light:     #f5f5f7;
-    --text-placeholder:  rgba(255, 255, 255, 0.3);
-    --text-error:        #f28b82;
-    --text-button-idle:  #5f6368;
+    --text-primary:           #e3e3e3;
+    --text-secondary:         #b4b4b4;
+    --text-bright:            #f5f5f7;
+    --text-placeholder:       rgba(255, 255, 255, 0.32);
+    --text-error:             #f28b82;
+    --text-button-idle:       #5f6368;
 
     /* Borders */
-    --border-color:        #3c4043;
-    --border-subtle:       rgba(255, 255, 255, 0.04);
-    --border-subtle-hover: rgba(255, 255, 255, 0.1);
-    --border-input-focus:  rgba(255, 255, 255, 0.2);
+    --border-color:           #3c4043;
+    --border-subtle:          rgba(255, 255, 255, 0.06);
+    --border-interactive:     rgba(255, 255, 255, 0.12); /* hover & focus */
 
     /* Typography */
-    --font-sans:  'Google Sans', 'Roboto', sans-serif;
-    --font-text:  'Roboto', sans-serif;
+    --font-ui:    'Google Sans', 'Roboto', sans-serif;
+    --font-body:  'Roboto', sans-serif;
     --font-serif: 'Source Serif 4', Georgia, serif;
 
     /* Layout */
-    --column:        720px;
-    --header-height: 48px;
+    --column:     740px;
+    --header-h:   56px;
+    --gutter:     24px;
+
+    /* Measured in JS; sane fallback for first paint. */
+    --composer-h: 150px;
 
     /* Motion */
-    --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+    --ease:           cubic-bezier(0.2, 0.8, 0.2, 1);
+    --slide-duration: 300ms;
 }
 
 
 /* ---------- Reset ---------- */
 
-* {
+*,
+*::before,
+*::after {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
 }
 
+html,
+body {
+    height: 100%;
+}
+
 body {
     background-color: var(--bg-main);
     color: var(--text-primary);
-    font-family: var(--font-sans);
+    font-family: var(--font-ui);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow: hidden;
+}
+
+button {
+    font: inherit;
+    color: inherit;
+    background: none;
+    border: none;
+    cursor: pointer;
+}
+
+::selection {
+    background-color: rgba(255, 255, 255, 0.18);
+    color: var(--text-bright);
+}
+
+/* ---------- App shell ---------- */
+
+.app {
+    position: relative;
+    display: flex;
+    flex-direction: column;
     height: 100dvh;
     overflow: hidden;
 }
 
 
-/* ---------- App shell ---------- */
+/* ---------- Top bar ---------- */
 
-.app-container {
-    display: flex;
-    flex-direction: column;
-    height: 100dvh;
-}
-
-.app-header {
-    flex-shrink: 0;
-    height: var(--header-height);
-    padding: 0 24px;
+.topbar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
     display: flex;
     align-items: center;
-    background-color: var(--bg-main);
+    height: var(--header-h);
+    padding: 0 var(--gutter);
+    background-color: transparent;
     z-index: 10;
 }
 
@@ -99,157 +139,393 @@ body {
     font-size: 20px;
     font-weight: 500;
     color: var(--text-primary);
+    letter-spacing: -0.01em;
 }
 
-.sub-brand {
-    margin-left: 6px;
+.brand-sub {
+    margin-left: 7px;
     font-size: 14px;
     font-weight: 400;
     color: var(--text-secondary);
 }
 
 
-/* ---------- Chat area (scroll container) ---------- */
+/* ---------- Thread (scroll container, chat only) ---------- */
 
-.chat-area {
+.thread {
     flex: 1;
     min-height: 0;
     overflow-y: auto;
-    padding: 0 24px;
+    overflow-x: hidden;
     scroll-behavior: smooth;
-    position: relative;
+    overscroll-behavior: contain;
+
+    padding-bottom: 180px;
+
+    /* Dissolve content under the top bar and over the upper half of the
+       composer, so it can scroll all the way to the top and bottom without a
+       hard clip line at either edge. */
+    -webkit-mask-image: linear-gradient(
+        to bottom,
+        transparent 0,
+        #000 var(--header-h),
+        #000 calc(100% - var(--composer-h)),
+        transparent calc(100% - var(--composer-h) / 2)
+    );
+    mask-image: linear-gradient(
+        to bottom,
+        transparent 0,
+        #000 var(--header-h),
+        #000 calc(100% - var(--composer-h)),
+        transparent calc(100% - var(--composer-h) / 2)
+    );
 }
 
-.app-container:not(.has-content) .chat-area {
+.app[data-state="empty"] .thread {
     display: none;
 }
 
-.chat-area::-webkit-scrollbar {
+.thread::-webkit-scrollbar {
     width: 0;
 }
 
-/* Thin gradient mask under the header to soften scroll bleed-through. */
-.app-container.has-content .chat-area::before {
-    content: "";
-    position: fixed;
-    top: var(--header-height);
-    left: 0;
-    right: 0;
-    height: 32px;
-    background: linear-gradient(to bottom, var(--bg-main) 20%, transparent);
-    pointer-events: none;
-    z-index: 9;
+.thread {
+    scrollbar-width: none; /* Firefox: hide native bar, the overlay replaces it */
 }
 
-
-/* ---------- Conversation thread ---------- */
-
-.conversation-container {
+.thread-inner {
     width: 100%;
     max-width: var(--column);
     margin: 0 auto;
-    padding: 32px 0 40px;
+    padding: calc(var(--header-h) + 16px) var(--gutter) 0;
+}
+
+
+/* ---------- Overlay scrollbar ---------- */
+
+.scrollbar {
+    position: absolute;
+    top: 6px;
+    bottom: 6px;
+    right: 4px;
+    width: 10px;
+    z-index: 20;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s var(--ease);
+}
+
+.app[data-state="chat"] .scrollbar.is-scrollable {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.scrollbar-thumb {
+    position: absolute;
+    top: 0;
+    left: 2px;
+    width: 6px;
+    border-radius: 8px;
+    background-color: var(--border-color);
+    transition: background-color 0.2s var(--ease);
+}
+
+.scrollbar:hover .scrollbar-thumb,
+.scrollbar-thumb.is-dragging {
+    background-color: #54585c;
+}
+
+
+/* ---------- Dock ---------- */
+
+.dock {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 0 var(--gutter);
+    background-color: transparent;
+    z-index: 8;
+}
+
+/* Home: the dock fills the page and centres its content. */
+.app[data-state="empty"] .dock {
+    flex: 1;
+    min-height: 0;
+}
+
+.app[data-state="empty"] .dock-center {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 30px;
+    padding-top: var(--header-h);
+    padding-bottom: 12vh; /* lift the block toward the optical middle */
+}
+
+/* Chat: the dock is pinned to the bottom; only the composer remains. */
+.app[data-state="chat"] .dock {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+}
+
+.app[data-state="chat"] .welcome,
+.app[data-state="chat"] .suggestions {
     display: none;
 }
 
-.app-container.has-content .conversation-container {
-    display: block;
+
+/* ---------- Welcome ---------- */
+
+.welcome {
+    text-align: center;
+    animation: fade-in 0.6s var(--ease) both;
 }
+
+.welcome-title {
+    font-family: var(--font-serif);
+    font-size: clamp(30px, 5vw, 46px);
+    font-weight: 400;
+    letter-spacing: -0.015em;
+    color: var(--text-bright);
+    cursor: default;
+    user-select: none;
+}
+
+
+/* ---------- Suggestions ---------- */
+
+.suggestions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+}
+
+.chip {
+    padding: 9px 18px;
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: 22px;
+    font-family: var(--font-ui);
+    font-size: 14px;
+    color: var(--text-secondary);
+    transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.chip:hover {
+    background-color: var(--bg-source-hover);
+    border-color: var(--border-interactive);
+    color: var(--text-primary);
+}
+
+
+/* ---------- Composer ---------- */
+
+.composer-positioner {
+    width: 100%;
+    max-width: var(--column);
+    margin: 0 auto;
+}
+
+/* During the home -> chat slide, the composer transitions its transform.
+   The translateY value is computed at runtime (FLIP). */
+.app.is-transitioning .composer-positioner {
+    transition: transform var(--slide-duration) var(--ease);
+}
+
+.composer {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 14px 12px 12px;
+    background-color: var(--bg-surface);
+    border: 1px solid transparent;
+    border-radius: 22px;
+    cursor: text;
+    transition: border-color 0.2s var(--ease);
+}
+
+.composer:hover,
+.composer:focus-within {
+    border-color: var(--border-interactive);
+}
+
+.composer-input {
+    width: 100%;
+    max-height: 184px;
+    padding: 2px 6px;
+    background: transparent;
+    border: none;
+    outline: none;
+    resize: none;
+    overflow-y: auto;
+    font-family: var(--font-body);
+    font-size: 16px;
+    line-height: 1.5;
+    color: var(--text-primary);
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-color) transparent;
+}
+
+.composer-input::placeholder {
+    color: var(--text-placeholder);
+}
+
+.composer-input::-webkit-scrollbar {
+    width: 6px;
+}
+
+.composer-input::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.composer-input::-webkit-scrollbar-thumb {
+    background-color: var(--border-color);
+    border-radius: 8px;
+}
+
+.composer-input::-webkit-scrollbar-thumb:hover {
+    background-color: #54585c;
+}
+
+.composer-actions {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+}
+
+/* Send button — original behaviour: idle grey, brighter on hover, solid grey
+   with a white glyph once there is text to send. */
+.send-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background-color: var(--bg-button-idle);
+    color: var(--text-button-idle);
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.send-button:hover {
+    background-color: var(--bg-button-hover);
+    color: var(--text-primary);
+}
+
+.send-button.is-active {
+    background-color: var(--bg-button-active);
+    color: #ffffff;
+}
+
+.send-button.is-active:hover {
+    background-color: var(--bg-button-active-hover);
+}
+
+.send-button .material-symbols-rounded {
+    font-size: 20px;
+}
+
+
+/* ---------- Messages ---------- */
 
 .message {
-    display: flex;
-    margin-bottom: 32px;
-    animation: fadeInUp 0.3s var(--ease-out) forwards;
+    margin-bottom: 30px;
+    animation: rise-in 0.32s var(--ease) both;
 }
 
-.user-message-wrapper {
+.message:last-child {
+    margin-bottom: 12px;
+}
+
+.message-user {
+    display: flex;
     justify-content: flex-end;
-    width: 100%;
 }
 
 .user-bubble {
     max-width: 85%;
-    padding: 12px 20px;
+    padding: 12px 18px;
     background-color: var(--bg-user-bubble);
-    color: var(--text-primary);
     border-radius: 20px 20px 4px 20px;
-    font-family: var(--font-text);
+    font-family: var(--font-body);
     font-size: 16px;
-    line-height: 1.5;
+    line-height: 1.55;
+    color: var(--text-primary);
     white-space: pre-wrap;
     overflow-wrap: break-word;
-    word-break: break-word;
 }
 
-.assistant-message {
+.message-assistant {
+    display: flex;
+    flex-direction: column;
     align-items: flex-start;
-    gap: 18px;
-    width: 100%;
+    gap: 12px;
 }
 
 .avatar {
     flex-shrink: 0;
     width: 32px;
     height: 32px;
-    margin-top: 4px;
+    margin-top: 2px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-}
-
-.assistant-avatar {
     background-color: var(--bg-avatar);
     color: var(--text-secondary);
 }
 
-.assistant-avatar .material-symbols-rounded {
+.avatar .material-symbols-rounded {
     font-size: 18px;
 }
 
-.message-content {
+.answer {
     flex: 1;
+    min-width: 0;
     width: 100%;
     font-family: var(--font-serif);
     font-size: 16px;
-    line-height: 1.6;
-    font-weight: 400;
+    line-height: 1.65;
     color: var(--text-primary);
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
 }
 
-.error-text {
-    color: var(--text-error);
+.answer p {
+    margin: 0 0 0.85em;
 }
 
-.message-content p {
-    margin: 0 0 0.85em 0;
+.answer p,
+.answer .sources {
+    animation: rise-in 0.35s var(--ease) both;
 }
 
-.message-content p:last-child {
+.answer p:last-child {
     margin-bottom: 0;
 }
 
-.message-content strong {
+.answer strong {
     font-weight: 700;
 }
 
+.answer.is-error {
+    color: var(--text-error);
+}
 
-/* ---------- Source cards ---------- */
 
-.sources-container {
-    margin-top: 32px;
+/* ---------- Sources ---------- */
+
+.sources {
+    margin-top: 30px;
     padding-top: 16px;
     border-top: 1px solid var(--border-color);
 }
 
-.sources-container.is-hidden {
-    display: none;
-}
-
 .sources-title {
-    margin-bottom: 16px;
+    margin-bottom: 14px;
     font-family: var(--font-serif);
     font-size: 12px;
     font-weight: 500;
@@ -261,42 +537,53 @@ body {
     display: flex;
     flex-direction: column;
     gap: 12px;
-    width: 100%;
 }
 
 .source-card {
     display: flex;
-    flex-direction: row;
     align-items: center;
     justify-content: space-between;
     gap: 16px;
-    width: 100%;
-    padding: 16px;
+    padding: 15px 18px;
     background-color: var(--bg-surface);
     border: 1px solid var(--border-subtle);
-    border-radius: 12px;
-    color: inherit;
+    border-radius: 14px;
     text-decoration: none;
+    color: inherit;
     transition: background-color 0.2s, border-color 0.2s;
 }
 
 .source-card:hover {
     background-color: var(--bg-source-hover);
-    border-color: var(--border-subtle-hover);
+    border-color: var(--border-interactive);
 }
 
-.source-content {
-    flex: 1;
+.source-text {
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 5px;
+}
+
+.source-title {
+    font-family: var(--font-serif);
+    font-size: 16px;
+    line-height: 1.4;
+    color: var(--text-bright);
+}
+
+.source-meta {
+    font-family: var(--font-ui);
+    font-size: 12px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--text-secondary);
 }
 
 .source-icon {
     flex-shrink: 0;
     color: var(--text-secondary);
-    opacity: 0.6;
+    opacity: 0.55;
     transition: opacity 0.2s;
 }
 
@@ -304,250 +591,84 @@ body {
     opacity: 1;
 }
 
-.source-title {
-    font-family: var(--font-serif);
-    font-size: 16px;
-    font-weight: 400;
-    line-height: 1.4;
-    color: var(--text-on-light);
-}
-
-.source-meta {
-    font-family: var(--font-sans);
-    font-size: 12px;
-    color: var(--text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-
-/* ---------- Bottom dock & welcome screen ----------
-   On the home screen, .dock fills the page (flex: 1) and the dock-center
-   block is justified slightly above the optical middle — same trick as
-   the Google homepage. The asymmetric padding pulls it just enough above
-   geometric center to feel balanced to the eye. */
-
-.dock {
-    flex-shrink: 0;
-    padding: 0 24px;
-    background-color: var(--bg-main);
-    display: flex;
-    flex-direction: column;
-    z-index: 8;
-}
-
-.app-container:not(.has-content) .dock {
-    flex: 1;
-    min-height: 0;
-    justify-content: center;
-    padding-bottom: 22vh; /* shifts the centered block toward the optical middle */
-}
-
-.dock-center {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 32px;
-    width: 100%;
-}
-
-.welcome-screen {
-    text-align: center;
-    animation: fadeIn 0.8s ease;
-}
-
-.app-container.has-content .welcome-screen {
-    display: none;
-}
-
-.welcome-screen h1 {
-    font-family: var(--font-serif);
-    font-size: 44px;
-    font-weight: 400;
-    letter-spacing: -0.5px;
-    color: var(--text-on-light);
-}
-
-
-/* ---------- Input box ---------- */
-
-.input-box-positioner {
-    width: 100%;
-    max-width: var(--column);
-    margin: 0 auto;
-}
-
-/* During the home → chat transition, the input box slides from its
-   centered home position down to its final docked position. The actual
-   translateY value is computed at runtime (FLIP technique). */
-.app-container.is-transitioning .input-box-positioner {
-    transition: transform 0.3s var(--ease-out);
-}
-
-.input-container-box {
-    width: 100%;
-    padding: 16px 12px 12px;
-    background-color: var(--bg-input);
-    border: 1px solid transparent;
-    border-radius: 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    cursor: text;
-    transition: border-color 0.2s ease;
-}
-
-.input-container-box:hover,
-.input-container-box:has(.prompt-zone textarea:focus) {
-    border-color: var(--border-input-focus);
-}
-
-.prompt-zone {
-    width: 100%;
-}
-
-.prompt-zone textarea {
-    width: 100%;
-    max-height: 180px;
-    padding: 0 4px;
-    background: transparent;
-    border: none;
-    outline: none;
-    resize: none;
-    overflow-y: auto;
-    color: var(--text-primary);
-    font-family: var(--font-text);
-    font-size: 16px;
-    line-height: 1.5;
-}
-
-.prompt-zone textarea::placeholder {
-    color: var(--text-placeholder);
-}
-
-.prompt-zone textarea::-webkit-scrollbar {
-    width: 4px;
-}
-
-.prompt-zone textarea::-webkit-scrollbar-thumb {
-    background: var(--border-color);
-    border-radius: 2px;
-}
-
-.options-zone {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    width: 100%;
-    padding-top: 4px;
-}
-
-.right-options button {
-    width: 36px;
-    height: 36px;
-    border: none;
-    border-radius: 50%;
-    background-color: var(--bg-button-idle);
-    color: var(--text-button-idle);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: background-color 0.2s, color 0.2s;
-}
-
-.right-options button:hover {
-    background-color: var(--bg-button-hover);
-    color: var(--text-primary);
-}
-
-.right-options button.is-active {
-    background-color: var(--bg-button-active);
-    color: #ffffff;
-}
-
-.right-options button.is-active:hover {
-    background-color: var(--bg-button-active-hover);
-}
-
-.right-options button .material-symbols-rounded {
+.source-icon .material-symbols-rounded {
     font-size: 20px;
-}
-
-
-/* ---------- Footer disclaimer ---------- */
-
-.app-disclaimer-bar {
-    flex-shrink: 0;
-    width: 100%;
-    padding: 16px 0;
-    background-color: var(--bg-main);
-}
-
-.disclaimer {
-    max-width: var(--column);
-    margin: 0 auto;
-    font-size: 12px;
-    color: var(--text-secondary);
-    text-align: center;
 }
 
 
 /* ---------- Loading state ---------- */
 
-.status-loading-wrapper {
+.thinking {
     display: flex;
     flex-direction: column;
     gap: 16px;
-    width: 100%;
 }
 
-.status-message {
+.thinking-label {
     font-family: var(--font-serif);
     font-style: italic;
     font-size: 15px;
     color: var(--text-secondary);
-    animation: pulseText 1.5s ease-in-out infinite;
+    animation: pulse 1.6s ease-in-out infinite;
 }
 
-.loading-skeleton {
+.skeleton {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    width: 100%;
+    gap: 11px;
 }
 
 .skeleton-line {
-    height: 16px;
-    border-radius: 4px;
+    height: 15px;
+    border-radius: 5px;
     background: linear-gradient(90deg, #1e1f20 25%, #2a2b2c 50%, #1e1f20 75%);
     background-size: 200% 100%;
-    animation: loadingShimmer 1.5s infinite;
+    animation: shimmer 1.5s infinite;
 }
 
-.skeleton-line:nth-child(1) { width: 85%; }
-.skeleton-line:nth-child(2) { width: 95%; }
-.skeleton-line:nth-child(3) { width: 30%; }
+.skeleton-line:nth-child(1) { width: 88%; }
+.skeleton-line:nth-child(2) { width: 96%; }
+.skeleton-line:nth-child(3) { width: 34%; }
+
+
+/* ---------- Disclaimer ---------- */
+
+.disclaimer {
+    flex-shrink: 0;
+    padding: 12px 0 16px;
+    font-family: var(--font-ui);
+    font-size: 12px;
+    text-align: center;
+    color: var(--text-secondary);
+}
 
 
 /* ---------- Animations ---------- */
 
-@keyframes loadingShimmer {
-    0%   { background-position:  200% 0; }
-    100% { background-position: -200% 0; }
-}
-
-@keyframes pulseText {
-    0%, 100% { opacity: 0.6; }
-    50%      { opacity: 1;   }
-}
-
-@keyframes fadeIn {
+@keyframes fade-in {
     from { opacity: 0; }
     to   { opacity: 1; }
 }
 
-@keyframes fadeInUp {
-    from { opacity: 0; transform: translateY(12px); }
-    to   { opacity: 1; transform: translateY(0);    }
+@keyframes rise-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes shimmer {
+    0%   { background-position:  200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 0.55; }
+    50%      { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.001ms !important;
+        transition-duration: 0.001ms !important;
+        scroll-behavior: auto !important;
+    }
 }
