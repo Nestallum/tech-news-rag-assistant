@@ -111,6 +111,7 @@ Create a `.env` file at the project root with your API keys:
 CEREBRAS_API_KEY=your_key_here
 QDRANT_URL=your_cluster_url
 QDRANT_API_KEY=your_api_key
+
 ```
 
 ### Usage
